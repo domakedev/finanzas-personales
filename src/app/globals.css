@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #F2F2F2;
+  --foreground: #1a202c;
+  
+  /* Custom Palette */
+  --primary: #5478BF;
+  --secondary: #555F73;
+  --accent: #B67D8C;
+  --highlight: #F2DC99;
+  
+  /* UI specific */
+  --card: #ffffff;
+  --card-foreground: #1a202c;
+  --popover: #ffffff;
+  --popover-foreground: #1a202c;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #5478BF;
+}
+
+.dark {
+  --background: #1a202c;
+  --foreground: #F2F2F2;
+  
+  --card: #2d3748;
+  --card-foreground: #F2F2F2;
+  --popover: #2d3748;
+  --popover-foreground: #F2F2F2;
+  --muted: #374151;
+  --muted-foreground: #9ca3af;
+  --border: #4b5563;
+  --input: #4b5563;
+  --ring: #5478BF;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-highlight: var(--highlight);
+  
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  --radius-lg: 0.5rem;
+  --radius-md: calc(0.5rem - 2px);
+  --radius-sm: calc(0.5rem - 4px);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}

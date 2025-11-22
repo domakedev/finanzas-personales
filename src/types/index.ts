@@ -1,0 +1,40 @@
+export interface Account {
+  id: string;
+  name: string;
+  type: 'BANK' | 'WALLET' | 'CASH';
+  currency: 'PEN' | 'USD';
+  balance: number;
+  logo?: string; // Path to logo image (e.g., '/logos/bcp.png')
+  icon?: string; // Emoji icon (e.g., '💵')
+}
+
+export interface Transaction {
+  id: string;
+  amount: number;
+  description: string;
+  date: Date;
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
+  categoryId?: string;
+  accountId: string;
+  fromAccountId?: string; // For transfers
+  exchangeRate?: number; // Exchange rate for cross-currency transfers
+  convertedAmount?: number; // Converted amount for destination account
+  fromCurrency?: string; // Source currency for transfers
+  toCurrency?: string; // Destination currency for transfers
+}
+
+export interface Debt {
+  id: string;
+  name: string;
+  totalAmount: number;
+  paidAmount: number;
+  dueDate?: Date;
+}
+
+export interface Goal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadline?: Date;
+}
