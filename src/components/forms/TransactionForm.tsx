@@ -497,7 +497,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
             </div>
           )}
         </>
-      ) : transactionType !== 'TRANSFER' ? (
+      ) : (
         <div className="space-y-2">
           <label className="text-sm font-medium">
             {transactionType === 'PAY_DEBT' ? 'Cuenta para Pagar' : 'Cuenta'}
@@ -516,7 +516,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           </select>
           {errors.accountId && <p className="text-xs text-red-500">{errors.accountId.message}</p>}
         </div>
-      ) : null}
+      )}
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Fecha</label>
