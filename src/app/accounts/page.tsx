@@ -13,11 +13,7 @@ import { useStore } from '@/lib/store';
 import { deleteAccount } from '@/lib/db';
 import { Plus, Wallet, Banknote, CreditCard, Trash2, Pencil } from 'lucide-react';
 import { Account } from '@/types';
-import { useLoadData } from '@/lib/useLoadData';
-
 export default function AccountsPage() {
-  const { isLoading } = useLoadData();
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,14 +62,6 @@ export default function AccountsPage() {
       default: return <Wallet className="h-5 w-5" />;
     }
   };
-
-  if (isLoading) {
-    return (
-      <Layout>
-        <LoadingFinance />
-      </Layout>
-    );
-  }
 
   return (
     <Layout>

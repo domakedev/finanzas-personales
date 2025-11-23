@@ -12,12 +12,9 @@ import { useStore } from '@/lib/store';
 import { deleteTransactionAtomic } from '@/lib/db';
 import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
-import { useLoadData } from '@/lib/useLoadData';
 import { Transaction } from '@/types';
 
 export default function TransactionsPage() {
-  const { isLoading } = useLoadData();
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; transactionId: string | null }>({
@@ -70,14 +67,6 @@ export default function TransactionsPage() {
   const getAccountName = (id: string) => {
     return accounts.find(a => a.id === id)?.name || 'Cuenta desconocida';
   };
-
-  if (isLoading) {
-    return (
-      <Layout>
-        <LoadingFinance />
-      </Layout>
-    );
-  }
 
   return (
     <Layout>

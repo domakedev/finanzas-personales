@@ -12,11 +12,8 @@ import { useStore } from '@/lib/store';
 import { deleteDebt } from '@/lib/db';
 import { Plus, AlertCircle, Trash2, Pencil } from 'lucide-react';
 import { Debt } from '@/types';
-import { useLoadData } from '@/lib/useLoadData';
 
 export default function DebtsPage() {
-  const { isLoading } = useLoadData();
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; debtId: string | null }>({
@@ -38,14 +35,6 @@ export default function DebtsPage() {
       console.error("Error deleting debt:", error);
     }
   };
-
-  if (isLoading) {
-    return (
-      <Layout>
-        <LoadingFinance />
-      </Layout>
-    );
-  }
 
   return (
     <Layout>

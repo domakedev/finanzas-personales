@@ -13,11 +13,8 @@ import { useStore } from '@/lib/store';
 import { deleteGoal } from '@/lib/db';
 import { Plus, Trash2, Pencil } from 'lucide-react';
 import { Goal } from '@/types';
-import { useLoadData } from '@/lib/useLoadData';
 
 export default function GoalsPage() {
-  const { isLoading } = useLoadData();
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; goalId: string | null }>({
@@ -39,14 +36,6 @@ export default function GoalsPage() {
       console.error("Error deleting goal:", error);
     }
   };
-
-  if (isLoading) {
-    return (
-      <Layout>
-        <LoadingFinance />
-      </Layout>
-    );
-  }
 
   return (
     <Layout>

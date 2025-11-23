@@ -13,11 +13,8 @@ import { AccountForm } from '@/components/forms/AccountForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
-import { useLoadData } from '@/lib/useLoadData';
 
 export default function Dashboard() {
-  const { isLoading } = useLoadData();
-  
   const { user } = useAuth();
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
@@ -65,14 +62,6 @@ export default function Dashboard() {
   const openDetailModal = (type: typeof detailModal.type, currency?: 'PEN' | 'USD') => {
     setDetailModal({ isOpen: true, type, currency });
   };
-
-  if (isLoading) {
-    return (
-      <Layout>
-        <LoadingFinance />
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
