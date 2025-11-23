@@ -30,8 +30,10 @@ export default function TransactionsPage() {
   const transactions = useStore((state) => state.transactions);
   const accounts = useStore((state) => state.accounts);
   const categories = useStore((state) => state.categories);
+  const debts = useStore((state) => state.debts);
   const removeTransaction = useStore((state) => state.removeTransaction);
   const updateAccountInStore = useStore((state) => state.updateAccount);
+  const updateDebtInStore = useStore((state) => state.updateDebt);
 
   const handleDelete = async (transactionId: string) => {
     try {
@@ -58,6 +60,20 @@ export default function TransactionsPage() {
           const amountToRevert = transaction.convertedAmount || transaction.amount;
           updateAccountInStore(toAccount.id, { balance: toAccount.balance - amountToRevert });
         }
+      } else if (transaction.type === 'PAY_DEBT') {
+        // Revert account balance: add back the amount
+        const account = accounts.find(a => a.id === transaction.accountId);
+        if (account) {
+          updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
+        }
+        // Revert debt paidAmount: subtract the amount
+        if (transaction.debtId) {
+          const debt = debts.find(d => d.id === transaction.debtId);
+          if (debt) {
+            const newPaidAmount = debt.paidAmount - transaction.amount;
+            updateDebtInStore(debt.id, { paidAmount: newPaidAmount });
+          }
+        }
       }
 
       removeTransaction(transactionId);
@@ -69,6 +85,10 @@ export default function TransactionsPage() {
 
   const getAccountName = (id: string) => {
     return accounts.find(a => a.id === id)?.name || 'Cuenta desconocida';
+  };
+
+  const getDebtName = (id: string) => {
+    return debts.find(d => d.id === id)?.name || 'Deuda desconocida';
   };
 
   return (
@@ -150,6 +170,9 @@ export default function TransactionsPage() {
                         <p className="text-sm text-muted-foreground">
                           {format(new Date(tx.date), 'dd/MM/yyyy')} • {getAccountInfo()}
                         </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Tipo: {tx.type === 'EXPENSE' ? 'Gasto' : tx.type === 'INCOME' ? 'Ingreso' : tx.type === 'TRANSFER' ? 'Transferencia' : 'Pago de Deuda'}
+                        </p>
                         {tx.categoryId && (
                           <p className="text-xs text-muted-foreground mt-1">
                             {(() => {
@@ -163,6 +186,16 @@ export default function TransactionsPage() {
                                 <span className="text-red-400 italic">Categoría eliminada</span>
                               );
                             })()}
+                          </p>
+                        )}
+                        {tx.type === 'PAY_DEBT' && tx.debtId && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Deuda: {getDebtName(tx.debtId)}
+                          </p>
+                        )}
+                        {tx.type === 'TRANSFER' && tx.exchangeRate && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Tasa de cambio: {tx.exchangeRate}
                           </p>
                         )}
                       </div>

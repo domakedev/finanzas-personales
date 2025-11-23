@@ -29,6 +29,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
       totalAmount: debt?.totalAmount || 0,
       paidAmount: debt?.paidAmount || 0,
       currency: debt?.currency || 'PEN',
+      dueDate: debt?.dueDate ? (debt.dueDate instanceof Date ? debt.dueDate.toISOString().split('T')[0] : new Date(debt.dueDate).toISOString().split('T')[0]) : undefined,
     }
   });
 
@@ -43,16 +44,22 @@ export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
     if (!user) return;
     setIsSubmitting(true);
     try {
+      // Handle optional dueDate - remove if empty
+      const debtData = { ...data };
+      if (!debtData.dueDate || debtData.dueDate === '') {
+        delete debtData.dueDate;
+      }
+
       if (debt) {
-        updateDebtInStore(debt.id, data);
-        await updateDebt(debt.id, data);
+        updateDebtInStore(debt.id, debtData);
+        await updateDebt(debt.id, debtData);
       } else {
         // Add to Firebase and get the real document ID
-        const docRef = await addDebt(user.uid, data);
+        const docRef = await addDebt(user.uid, debtData);
         
         // Create debt with the real Firebase ID
         const debtWithRealId = {
-          ...data,
+          ...debtData,
           id: docRef.id  // Use Firebase's generated ID
         };
         

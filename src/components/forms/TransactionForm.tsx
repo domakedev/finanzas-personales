@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { TransactionSchema, TransactionFormData } from '@/lib/schemas';
 import { Button } from '@/components/ui/Button';
 import { useStore } from '@/lib/store';
-import { addTransaction, updateAccount as updateAccountInDB, updateTransaction as updateTransactionInDB } from '@/lib/db';
+import { addTransaction, updateAccount as updateAccountInDB, updateTransaction as updateTransactionInDB, updateDebt as updateDebtInDB } from '@/lib/db';
 import { useAuth } from '@/lib/auth';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Transaction } from '@/types';
@@ -24,8 +24,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
   const addTransactionToStore = useStore((state) => state.addTransaction);
   const updateAccount = useStore((state) => state.updateAccount);
   const updateTransaction = useStore((state) => state.updateTransaction);
+  const updateDebt = useStore((state) => state.updateDebt);
   const accounts = useStore((state) => state.accounts);
   const categories = useStore((state) => state.categories);
+  const debts = useStore((state) => state.debts);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [needsExchangeRate, setNeedsExchangeRate] = useState(false);
@@ -42,9 +44,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       accountId: transaction.accountId,
       fromAccountId: transaction.fromAccountId,
       categoryId: transaction.categoryId,
+      debtId: transaction.debtId,
       exchangeRate: transaction.exchangeRate,
     } : {
-      type: 'EXPENSE',
+      type: 'EXPENSE' as const,
       date: (() => {
         const today = new Date();
         const year = today.getFullYear();
@@ -58,6 +61,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
   const transactionType = watch('type');
   const fromAccountId = watch('fromAccountId');
   const toAccountId = watch('accountId');
+  const debtId = watch('debtId');
   const amount = watch('amount') as number;
   const exchangeRate = watch('exchangeRate') as number;
 
@@ -119,6 +123,27 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       }
     }
 
+    // Validate PAY_DEBT
+    if (data.type === 'PAY_DEBT') {
+      if (!data.debtId) return "Debes seleccionar una deuda";
+      
+      const debt = debts.find(d => d.id === data.debtId);
+      const account = accounts.find(a => a.id === data.accountId);
+      
+      if (!debt) return "La deuda seleccionada no existe";
+      if (!account) return "La cuenta seleccionada no existe";
+      
+      const remainingDebt = debt.totalAmount - debt.paidAmount;
+      if (remainingDebt <= 0) return "Esta deuda ya está completamente pagada";
+      if (data.amount > remainingDebt) {
+        return `El monto excede la deuda restante. Máximo: ${debt.currency === 'USD' ? '$' : 'S/'} ${remainingDebt.toFixed(2)}`;
+      }
+      
+      if (account.balance < data.amount) {
+        return `Saldo insuficiente. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}`;
+      }
+    }
+
     return null;
   };
 
@@ -149,6 +174,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
 
       // Remove undefined fields (Firebase doesn't accept them)
       if (!data.categoryId) delete newTransaction.categoryId;
+      if (!data.debtId) delete newTransaction.debtId;
       if (!data.exchangeRate) delete newTransaction.exchangeRate;
 
       // Calculate converted amount for cross-currency transfers
@@ -196,6 +222,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           // For destination, add back the amount (or converted amount)
           const amountToRevert = transaction.convertedAmount || transaction.amount;
           addChange(transaction.accountId, -amountToRevert);
+        } else if (transaction.type === 'PAY_DEBT') {
+          addChange(transaction.accountId, transaction.amount);
         }
       }
 
@@ -208,6 +236,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         addChange(data.fromAccountId, -data.amount);
         const amountToAdd = newTransaction.convertedAmount || data.amount;
         addChange(data.accountId, amountToAdd);
+      } else if (data.type === 'PAY_DEBT') {
+        addChange(data.accountId, -data.amount);
       }
 
       // 3. Apply all balance changes
@@ -225,7 +255,35 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         await updateAccountInDB(accountId, { balance: newBalance });
       }
 
-      // 4. Save Transaction
+      // 4. Update Debt if this is a debt payment
+      if (data.type === 'PAY_DEBT' && data.debtId) {
+        const debt = debts.find(d => d.id === data.debtId);
+        if (debt) {
+          let newPaidAmount = debt.paidAmount;
+          
+          // If editing, revert the old payment first
+          if (transaction && transaction.type === 'PAY_DEBT' && transaction.debtId === data.debtId) {
+            newPaidAmount -= transaction.amount;
+          }
+          
+          // Apply the new payment
+          newPaidAmount += data.amount;
+          
+          // Update both store and DB
+          updateDebt(data.debtId, { paidAmount: newPaidAmount });
+          await updateDebtInDB(data.debtId, { paidAmount: newPaidAmount });
+        }
+      } else if (transaction && transaction.type === 'PAY_DEBT' && transaction.debtId) {
+        // If editing and changing away from PAY_DEBT, revert the debt payment
+        const debt = debts.find(d => d.id === transaction.debtId);
+        if (debt) {
+          const newPaidAmount = debt.paidAmount - transaction.amount;
+          updateDebt(transaction.debtId, { paidAmount: newPaidAmount });
+          await updateDebtInDB(transaction.debtId, { paidAmount: newPaidAmount });
+        }
+      }
+
+      // 5. Save Transaction
       if (transaction) {
         // Update existing transaction - clean undefined values
         const cleanData = Object.fromEntries(
@@ -293,6 +351,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
             <option value="EXPENSE">Gasto</option>
             <option value="INCOME">Ingreso</option>
             <option value="TRANSFER">Transferencia</option>
+            <option value="PAY_DEBT">Pagar Deuda</option>
           </select>
           {errors.type && <p className="text-xs text-red-500">{errors.type.message}</p>}
         </div>
@@ -323,32 +382,56 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">
-          {transactionType === 'INCOME' ? 'Fuente de Ingreso' : 'Categoría'}
-        </label>
-        <select
-          {...register('categoryId')}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          data-testid="transaction-category-select"
-        >
-          <option value="">{transactionType === 'INCOME' ? 'Seleccionar fuente' : 'Sin categoría'}</option>
-          {transactionType === 'INCOME' 
-            ? [
-                ...INCOME_SOURCES,
-                ...categories.filter(c => c.type === 'INCOME')
-              ].map(src => (
-                <option key={src.id} value={src.id}>{src.icon} {src.name}</option>
-              ))
-            : [
-                ...TRANSACTION_CATEGORIES,
-                ...categories.filter(c => c.type === 'EXPENSE')
-              ].map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
-              ))
-          }
-        </select>
-      </div>
+      {transactionType !== 'PAY_DEBT' && transactionType !== 'TRANSFER' && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">
+            {transactionType === 'INCOME' ? 'Fuente de Ingreso' : 'Categoría'}
+          </label>
+          <select
+            {...register('categoryId')}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="transaction-category-select"
+          >
+            <option value="">{transactionType === 'INCOME' ? 'Seleccionar fuente' : 'Sin categoría'}</option>
+            {transactionType === 'INCOME' 
+              ? [
+                  ...INCOME_SOURCES,
+                  ...categories.filter(c => c.type === 'INCOME')
+                ].map(src => (
+                  <option key={src.id} value={src.id}>{src.icon} {src.name}</option>
+                ))
+              : [
+                  ...TRANSACTION_CATEGORIES,
+                  ...categories.filter(c => c.type === 'EXPENSE')
+                ].map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                ))
+            }
+          </select>
+        </div>
+      )}
+
+      {transactionType === 'PAY_DEBT' && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Deuda a Pagar</label>
+          <select
+            {...register('debtId')}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="transaction-debt-select"
+          >
+            <option value="">Seleccionar deuda</option>
+            {debts.map(debt => {
+              const remaining = debt.totalAmount - debt.paidAmount;
+              return (
+                <option key={debt.id} value={debt.id}>
+                  {debt.name} - Restante: {debt.currency === 'USD' ? '$' : 'S/'} {remaining.toFixed(2)}
+                </option>
+              );
+            })}
+          </select>
+          {errors.debtId && <p className="text-xs text-red-500">{errors.debtId.message}</p>}
+        </div>
+      )}
 
       {transactionType === 'TRANSFER' ? (
         <>
@@ -414,9 +497,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
             </div>
           )}
         </>
-      ) : (
+      ) : transactionType !== 'TRANSFER' ? (
         <div className="space-y-2">
-          <label className="text-sm font-medium">Cuenta</label>
+          <label className="text-sm font-medium">
+            {transactionType === 'PAY_DEBT' ? 'Cuenta para Pagar' : 'Cuenta'}
+          </label>
           <select
             {...register('accountId')}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -431,7 +516,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           </select>
           {errors.accountId && <p className="text-xs text-red-500">{errors.accountId.message}</p>}
         </div>
-      )}
+      ) : null}
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Fecha</label>
@@ -447,7 +532,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
 
       <Button type="submit" className="w-full" disabled={isSubmitting || hasError} data-testid="save-transaction-button">
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {transaction ? 'Actualizar Transacción' : transactionType === 'TRANSFER' ? 'Transferir' : 'Guardar Transacción'}
+        {transaction ? 'Actualizar Transacción' : 
+          transactionType === 'TRANSFER' ? 'Transferir' : 
+          transactionType === 'PAY_DEBT' ? 'Pagar Deuda' : 
+          'Guardar Transacción'}
       </Button>
     </form>
   );

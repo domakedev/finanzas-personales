@@ -80,6 +80,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
     const type = txData.type;
     const accountId = txData.accountId;
     const fromAccountId = txData.fromAccountId;
+    const debtId = txData.debtId;
 
     // 2. Update account balances (revert the transaction effects)
     const updatePromises = [];
@@ -124,6 +125,28 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
           updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
         }
       }
+    } else if (type === 'PAY_DEBT') {
+      // Revert account balance (add back the payment)
+      if (accountId) {
+        const accountRef = doc(db, 'accounts', accountId);
+        const accountDoc = await getDoc(accountRef);
+        if (accountDoc.exists()) {
+          const currentBalance = Number(accountDoc.data().balance) || 0;
+          const newBalance = currentBalance + amount;
+          updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
+        }
+      }
+
+      // Revert debt paidAmount (subtract the payment)
+      if (debtId) {
+        const debtRef = doc(db, 'debts', debtId);
+        const debtDoc = await getDoc(debtRef);
+        if (debtDoc.exists()) {
+          const currentPaidAmount = Number(debtDoc.data().paidAmount) || 0;
+          const newPaidAmount = currentPaidAmount - amount;
+          updatePromises.push(updateDoc(debtRef, { paidAmount: Math.max(0, newPaidAmount) }));
+        }
+      }
     }
 
     // 3. Execute all balance updates
@@ -142,15 +165,35 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
 export const getDebts = async (userId: string): Promise<Debt[]> => {
   const q = query(collection(db, 'debts'), where('userId', '==', userId));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(convertDoc<Debt>);
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      ...convertDoc<Debt>(doc),
+      // Convert Timestamp to Date if dueDate exists
+      dueDate: data.dueDate ? (data.dueDate as Timestamp).toDate() : undefined
+    };
+  });
 };
 
 export const addDebt = async (userId: string, debt: Omit<Debt, 'id'>) => {
-  return addDoc(collection(db, 'debts'), { ...debt, userId });
+  const debtData: any = { ...debt, userId };
+  // Convert Date to Timestamp if dueDate exists
+  if (debt.dueDate) {
+    debtData.dueDate = Timestamp.fromDate(debt.dueDate instanceof Date ? debt.dueDate : new Date(debt.dueDate));
+  }
+  return addDoc(collection(db, 'debts'), debtData);
 };
 
 export const updateDebt = async (debtId: string, debt: Partial<Debt>) => {
-  return updateDoc(doc(db, 'debts', debtId), debt);
+  const debtData: any = { ...debt };
+  // Convert Date to Timestamp if dueDate exists
+  if (debt.dueDate !== undefined) {
+    if (debt.dueDate) {
+      debtData.dueDate = Timestamp.fromDate(debt.dueDate instanceof Date ? debt.dueDate : new Date(debt.dueDate));
+    }
+    // If dueDate is explicitly set to undefined/null, don't include it in the update
+  }
+  return updateDoc(doc(db, 'debts', debtId), debtData);
 };
 
 export const deleteDebt = async (debtId: string) => {
