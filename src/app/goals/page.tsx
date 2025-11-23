@@ -55,7 +55,7 @@ export default function GoalsPage() {
           <h1 className="text-3xl font-bold">Metas de Ahorro</h1>
           <p className="text-muted-foreground">Visualiza y alcanza tus objetivos</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
+        <Button onClick={() => setIsModalOpen(true)} data-testid="new-goal-button">
           <Plus className="mr-2 h-4 w-4" /> Nueva Meta
         </Button>
       </div>
@@ -65,7 +65,7 @@ export default function GoalsPage() {
           const percentage = (goal.currentAmount / goal.targetAmount) * 100;
           
           return (
-            <Card key={goal.id}>
+            <Card key={goal.id} data-testid={`goal-${goal.name}`}>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-center flex-1">{goal.name}</CardTitle>
                 <div className="flex items-center gap-2">
@@ -74,6 +74,7 @@ export default function GoalsPage() {
                     size="icon"
                     className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                     onClick={() => setEditConfirm({ isOpen: true, goal })}
+                    data-testid={`edit-goal-${goal.name}`}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -82,6 +83,7 @@ export default function GoalsPage() {
                     size="icon"
                     className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
                     onClick={() => setDeleteConfirm({ isOpen: true, goalId: goal.id })}
+                    data-testid={`delete-goal-${goal.name}`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -91,8 +93,8 @@ export default function GoalsPage() {
                 <SavingsTree percentage={percentage} />
                 <div className="mt-4 text-center w-full">
                   <div className="flex justify-between text-sm font-medium mb-1">
-                    <span>S/ {goal.currentAmount.toFixed(2)}</span>
-                    <span className="text-muted-foreground">S/ {goal.targetAmount.toFixed(2)}</span>
+                    <span>{goal.currency === 'USD' ? '$' : 'S/'} {goal.currentAmount.toFixed(2)}</span>
+                      <span className="text-muted-foreground">{goal.currency === 'USD' ? '$' : 'S/'} {goal.targetAmount.toFixed(2)}</span>
                   </div>
                   <div className="w-full bg-secondary/20 rounded-full h-2.5">
                     <div 

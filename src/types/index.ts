@@ -28,6 +28,7 @@ export interface Debt {
   name: string;
   totalAmount: number;
   paidAmount: number;
+  currency: 'PEN' | 'USD';
   dueDate?: Date;
 }
 
@@ -36,5 +37,6 @@ export interface Goal {
   name: string;
   targetAmount: number;
   currentAmount: number;
+  currency: 'PEN' | 'USD';
   deadline?: Date;
 }

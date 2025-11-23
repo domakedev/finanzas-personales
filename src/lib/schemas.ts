@@ -24,6 +24,7 @@ export const DebtSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   totalAmount: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
   paidAmount: z.coerce.number().min(0, "El monto pagado no puede ser negativo"),
+  currency: z.enum(['PEN', 'USD']),
   dueDate: z.coerce.date().optional(),
 }).refine((data) => data.paidAmount <= data.totalAmount, {
   message: "El monto pagado no puede exceder el total de la deuda",
@@ -34,6 +35,7 @@ export const GoalSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   targetAmount: z.coerce.number().min(0.01, "La meta debe ser mayor a 0"),
   currentAmount: z.coerce.number().min(0, "El ahorro actual no puede ser negativo"),
+  currency: z.enum(['PEN', 'USD']),
   deadline: z.coerce.date().optional(),
 });
 

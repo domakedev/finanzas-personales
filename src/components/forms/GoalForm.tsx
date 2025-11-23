@@ -28,6 +28,7 @@ export const GoalForm: React.FC<GoalFormProps> = ({ onSuccess, goal }) => {
       name: goal?.name || '',
       targetAmount: goal?.targetAmount || 0,
       currentAmount: goal?.currentAmount || 0,
+      currency: goal?.currency || 'PEN',
     }
   });
 
@@ -65,36 +66,52 @@ export const GoalForm: React.FC<GoalFormProps> = ({ onSuccess, goal }) => {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
         <label className="text-sm font-medium">Nombre de la Meta</label>
-        <input 
-          type="text" 
+        <input
+          type="text"
           {...register('name')}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           placeholder="Ej: Laptop Nueva"
+          data-testid="goal-name-input"
         />
         {errors.name && <p className="text-xs text-red-500">{errors.name.message as string}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Moneda</label>
+        <select
+          {...register('currency')}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid="goal-currency-select"
+        >
+          <option value="PEN">Soles (S/)</option>
+          <option value="USD">Dólares ($)</option>
+        </select>
+        {errors.currency && <p className="text-xs text-red-500">{errors.currency.message as string}</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="text-sm font-medium">Meta Total</label>
-          <input 
-            type="number" 
+          <input
+            type="number"
             step="0.01"
             {...register('targetAmount')}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             placeholder="0.00"
+            data-testid="goal-target-amount-input"
           />
           {errors.targetAmount && <p className="text-xs text-red-500">{errors.targetAmount.message as string}</p>}
         </div>
 
         <div className="space-y-2">
           <label className="text-sm font-medium">Ahorrado Actual</label>
-          <input 
-            type="number" 
+          <input
+            type="number"
             step="0.01"
             {...register('currentAmount')}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             placeholder="0.00"
+            data-testid="goal-current-amount-input"
           />
           {errors.currentAmount && <p className="text-xs text-red-500">{errors.currentAmount.message as string}</p>}
         </div>
@@ -102,14 +119,15 @@ export const GoalForm: React.FC<GoalFormProps> = ({ onSuccess, goal }) => {
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Fecha Objetivo (Opcional)</label>
-        <input 
-          type="date" 
+        <input
+          type="date"
           {...register('deadline')}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid="goal-deadline-input"
         />
       </div>
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="save-goal-button">
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {goal ? 'Actualizar Meta' : 'Guardar Meta'}
       </Button>
