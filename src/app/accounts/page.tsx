@@ -82,7 +82,7 @@ export default function AccountsPage() {
           <h1 className="text-3xl font-bold">Mis Cuentas</h1>
           <p className="text-muted-foreground">Gestiona tus bancos y billeteras</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
+        <Button onClick={() => setIsModalOpen(true)} data-testid="new-account-button">
           <Plus className="mr-2 h-4 w-4" /> Nueva Cuenta
         </Button>
       </div>
@@ -94,11 +94,11 @@ export default function AccountsPage() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" data-testid="accounts-grid">
         {accounts.map((account) => (
           <Card key={account.id} className="cursor-pointer hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-sm font-medium" data-testid={`account-name-${account.name}`}>
                 {account.name}
               </CardTitle>
               <div className="flex items-center gap-2">
@@ -110,6 +110,7 @@ export default function AccountsPage() {
                   size="icon"
                   className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                   onClick={() => setEditConfirm({ isOpen: true, account })}
+                  data-testid={`edit-account-${account.name}`}
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
@@ -118,6 +119,7 @@ export default function AccountsPage() {
                   size="icon"
                   className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
                   onClick={() => setDeleteConfirm({ isOpen: true, accountId: account.id })}
+                  data-testid={`delete-account-${account.name}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

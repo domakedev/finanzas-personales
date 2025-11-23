@@ -113,7 +113,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Tipo de Cuenta</label>
-        <select 
+        <select
           {...register('type')}
           onChange={(e) => {
             setValue('type', e.target.value as any);
@@ -121,6 +121,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
             setValue('name', '');
           }}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid="account-type-select"
         >
           <option value="BANK">Banco</option>
           <option value="WALLET">Billetera Digital</option>
@@ -143,6 +144,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
               className={`p-3 border-2 rounded-lg flex flex-col items-center gap-2 transition-all hover:border-primary/50 cursor-pointer ${
                 selectedOption === option.name ? 'border-primary bg-primary/5' : 'border-gray-200'
               }`}
+              data-testid={`account-option-${option.id}`}
             >
               {(option as any).logo ? (
                 <div className="w-12 h-12 relative">
@@ -170,8 +172,8 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Nombre de la Cuenta</label>
-        <input 
-          type="text" 
+        <input
+          type="text"
           {...register('name')}
           value={selectedOption}
           onChange={(e) => {
@@ -180,6 +182,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
           }}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           placeholder="Ej: Mi cuenta BCP"
+          data-testid="account-name-input"
         />
         {errors.name && <p className="text-xs text-red-500">{errors.name.message as string}</p>}
       </div>
@@ -187,9 +190,10 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="text-sm font-medium">Moneda</label>
-          <select 
+          <select
             {...register('currency')}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="account-currency-select"
           >
             <option value="PEN">Soles (S/)</option>
             <option value="USD">Dólares ($)</option>
@@ -199,18 +203,19 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
 
         <div className="space-y-2">
           <label className="text-sm font-medium">Balance Inicial</label>
-          <input 
-            type="number" 
+          <input
+            type="number"
             step="0.01"
             {...register('balance')}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             placeholder="0.00"
+            data-testid="account-balance-input"
           />
           {errors.balance && <p className="text-xs text-red-500">{errors.balance.message as string}</p>}
         </div>
       </div>
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="save-account-button">
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {account ? 'Actualizar Cuenta' : 'Guardar Cuenta'}
       </Button>

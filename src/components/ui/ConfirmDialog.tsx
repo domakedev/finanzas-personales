@@ -32,15 +32,16 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <p className="text-sm text-muted-foreground">{message}</p>
         </div>
         <div className="flex gap-2 justify-end">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} data-testid="confirm-cancel-button">
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={() => {
               onConfirm();
               onClose();
             }}
             className={isDestructive ? 'bg-red-600 hover:bg-red-700' : ''}
+            data-testid="confirm-action-button"
           >
             {confirmText}
           </Button>
