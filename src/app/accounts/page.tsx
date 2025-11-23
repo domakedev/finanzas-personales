@@ -11,7 +11,7 @@ import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import Image from 'next/image';
 import { useStore } from '@/lib/store';
 import { deleteAccount } from '@/lib/db';
-import { Plus, Wallet, Banknote, CreditCard, Trash2, Pencil } from 'lucide-react';
+import { Plus, Wallet, Banknote, CreditCard, Trash2, Pencil, Loader2 } from 'lucide-react';
 import { Account } from '@/types';
 export default function AccountsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,6 +25,8 @@ export default function AccountsPage() {
     isOpen: false,
     account: null,
   });
+  const [deletingIds, setDeletingIds] = useState<string[]>([]);
+  const [editingIds, setEditingIds] = useState<string[]>([]);
   const [historyModal, setHistoryModal] = useState<{ isOpen: boolean; account: Account | null }>({
     isOpen: false,
     account: null,
@@ -107,9 +109,10 @@ export default function AccountsPage() {
                   size="icon"
                   className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
                   onClick={() => setDeleteConfirm({ isOpen: true, accountId: account.id })}
+                  disabled={deletingIds.includes(account.id)}
                   data-testid={`delete-account-${account.name}`}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  {deletingIds.includes(account.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 </Button>
               </div>
             </CardHeader>
@@ -170,7 +173,17 @@ export default function AccountsPage() {
           setDeleteConfirm({ isOpen: false, accountId: null });
           setError(null);
         }}
-        onConfirm={() => deleteConfirm.accountId && handleDelete(deleteConfirm.accountId)}
+        onConfirm={async () => {
+          if (deleteConfirm.accountId) {
+            setDeletingIds(prev => [...prev, deleteConfirm.accountId!]);
+            try {
+              await handleDelete(deleteConfirm.accountId);
+            } finally {
+              setDeletingIds(prev => prev.filter(id => id !== deleteConfirm.accountId));
+            }
+          }
+          setDeleteConfirm({ isOpen: false, accountId: null });
+        }}
         title="Eliminar Cuenta"
         message="⚠️ Cuidado: Esta acción debería ser automática y no deberías editarla manualmente. Eliminar esta cuenta puede afectar tus transacciones existentes. ¿Estás seguro?"
         confirmText="Eliminar"

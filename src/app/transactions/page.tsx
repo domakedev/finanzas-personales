@@ -10,7 +10,7 @@ import { TransactionForm } from '@/components/forms/TransactionForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { deleteTransactionAtomic } from '@/lib/db';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
@@ -26,6 +26,7 @@ export default function TransactionsPage() {
     isOpen: false,
     transaction: null,
   });
+  const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const transactions = useStore((state) => state.transactions);
   const accounts = useStore((state) => state.accounts);
   const categories = useStore((state) => state.categories);
@@ -190,9 +191,10 @@ export default function TransactionsPage() {
                         size="icon"
                         className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
                         onClick={() => setDeleteConfirm({ isOpen: true, transactionId: tx.id })}
+                        disabled={deletingIds.includes(tx.id)}
                         data-testid={`delete-transaction-${tx.description}`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {deletingIds.includes(tx.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
@@ -223,7 +225,17 @@ export default function TransactionsPage() {
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         onClose={() => setDeleteConfirm({ isOpen: false, transactionId: null })}
-        onConfirm={() => deleteConfirm.transactionId && handleDelete(deleteConfirm.transactionId)}
+        onConfirm={async () => {
+          if (deleteConfirm.transactionId) {
+            setDeletingIds(prev => [...prev, deleteConfirm.transactionId!]);
+            try {
+              await handleDelete(deleteConfirm.transactionId);
+            } finally {
+              setDeletingIds(prev => prev.filter(id => id !== deleteConfirm.transactionId));
+            }
+          }
+          setDeleteConfirm({ isOpen: false, transactionId: null });
+        }}
         title="Eliminar Transacción"
         message="⚠️ Cuidado: Esta acción debería ser automática y no deberías editarla manualmente. Los balances de las cuentas podrían desincronizarse. ¿Estás seguro?"
         confirmText="Eliminar"

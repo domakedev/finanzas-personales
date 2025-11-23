@@ -34,6 +34,7 @@ export default function CategoriesPage() {
     isOpen: false,
     categoryId: null,
   });
+  const [deletingIds, setDeletingIds] = useState<string[]>([]);
 
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<CategoryFormData>({
     resolver: zodResolver(CategorySchema),
@@ -137,8 +138,8 @@ export default function CategoriesPage() {
                   <Button variant="ghost" size="icon" onClick={() => handleEdit(category)}>
                     <Pencil className="h-4 w-4 text-blue-500" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setDeleteConfirm({ isOpen: true, categoryId: category.id })}>
-                    <Trash2 className="h-4 w-4 text-red-500" />
+                  <Button variant="ghost" size="icon" onClick={() => setDeleteConfirm({ isOpen: true, categoryId: category.id })} disabled={deletingIds.includes(category.id)}>
+                    {deletingIds.includes(category.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-red-500" />}
                   </Button>
                 </div>
               </Card>
@@ -192,7 +193,17 @@ export default function CategoriesPage() {
         <ConfirmDialog
           isOpen={deleteConfirm.isOpen}
           onClose={() => setDeleteConfirm({ isOpen: false, categoryId: null })}
-          onConfirm={() => deleteConfirm.categoryId && handleDelete(deleteConfirm.categoryId)}
+          onConfirm={async () => {
+            if (deleteConfirm.categoryId) {
+              setDeletingIds(prev => [...prev, deleteConfirm.categoryId!]);
+              try {
+                await handleDelete(deleteConfirm.categoryId);
+              } finally {
+                setDeletingIds(prev => prev.filter(id => id !== deleteConfirm.categoryId));
+              }
+            }
+            setDeleteConfirm({ isOpen: false, categoryId: null });
+          }}
           title="Eliminar Categoría"
           message="¿Estás seguro de eliminar esta categoría? Las transacciones existentes mantendrán el ID pero podrían no mostrar el nombre correctamente si no se maneja."
           confirmText="Eliminar"

@@ -10,7 +10,7 @@ import { DebtForm } from '@/components/forms/DebtForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { deleteDebt } from '@/lib/db';
-import { Plus, AlertCircle, Trash2, Pencil } from 'lucide-react';
+import { Plus, AlertCircle, Trash2, Pencil, Loader2 } from 'lucide-react';
 import { Debt } from '@/types';
 
 export default function DebtsPage() {
@@ -24,6 +24,7 @@ export default function DebtsPage() {
     isOpen: false,
     debt: null,
   });
+  const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const debts = useStore((state) => state.debts);
   const setDebts = useStore((state) => state.setDebts);
 
@@ -75,9 +76,10 @@ export default function DebtsPage() {
                     size="icon"
                     className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
                     onClick={() => setDeleteConfirm({ isOpen: true, debtId: debt.id })}
+                    disabled={deletingIds.includes(debt.id)}
                     data-testid={`delete-debt-${debt.name}`}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {deletingIds.includes(debt.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                   </Button>
                 </div>
               </CardHeader>
@@ -138,7 +140,17 @@ export default function DebtsPage() {
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         onClose={() => setDeleteConfirm({ isOpen: false, debtId: null })}
-        onConfirm={() => deleteConfirm.debtId && handleDelete(deleteConfirm.debtId)}
+        onConfirm={async () => {
+          if (deleteConfirm.debtId) {
+            setDeletingIds(prev => [...prev, deleteConfirm.debtId!]);
+            try {
+              await handleDelete(deleteConfirm.debtId);
+            } finally {
+              setDeletingIds(prev => prev.filter(id => id !== deleteConfirm.debtId));
+            }
+          }
+          setDeleteConfirm({ isOpen: false, debtId: null });
+        }}
         title="Eliminar Deuda"
         message="⚠️ Cuidado: Esta acción debería ser automática y no deberías editarla manualmente. ¿Estás seguro de eliminar este registro de deuda?"
         confirmText="Eliminar"

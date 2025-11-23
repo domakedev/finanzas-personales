@@ -11,7 +11,7 @@ import { SavingsTree } from '@/components/SavingsTree';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { deleteGoal } from '@/lib/db';
-import { Plus, Trash2, Pencil } from 'lucide-react';
+import { Plus, Trash2, Pencil, Loader2 } from 'lucide-react';
 import { Goal } from '@/types';
 
 export default function GoalsPage() {
@@ -25,6 +25,7 @@ export default function GoalsPage() {
     isOpen: false,
     goal: null,
   });
+  const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const goals = useStore((state) => state.goals);
   const setGoals = useStore((state) => state.setGoals);
 
@@ -72,9 +73,10 @@ export default function GoalsPage() {
                     size="icon"
                     className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
                     onClick={() => setDeleteConfirm({ isOpen: true, goalId: goal.id })}
+                    disabled={deletingIds.includes(goal.id)}
                     data-testid={`delete-goal-${goal.name}`}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {deletingIds.includes(goal.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                   </Button>
                 </div>
               </CardHeader>
@@ -132,7 +134,17 @@ export default function GoalsPage() {
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         onClose={() => setDeleteConfirm({ isOpen: false, goalId: null })}
-        onConfirm={() => deleteConfirm.goalId && handleDelete(deleteConfirm.goalId)}
+        onConfirm={async () => {
+          if (deleteConfirm.goalId) {
+            setDeletingIds(prev => [...prev, deleteConfirm.goalId!]);
+            try {
+              await handleDelete(deleteConfirm.goalId);
+            } finally {
+              setDeletingIds(prev => prev.filter(id => id !== deleteConfirm.goalId));
+            }
+          }
+          setDeleteConfirm({ isOpen: false, goalId: null });
+        }}
         title="Eliminar Meta"
         message="⚠️ Cuidado: Esta acción debería ser automática y no deberías editarla manualmente. ¿Estás seguro de eliminar esta meta de ahorro?"
         confirmText="Eliminar"
