@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { TransactionSchema, TransactionFormData } from '@/lib/schemas';
 import { Button } from '@/components/ui/Button';
 import { useStore } from '@/lib/store';
-import { addTransaction, updateAccount as updateAccountInDB, updateTransaction as updateTransactionInDB, updateDebt as updateDebtInDB } from '@/lib/db';
+import { addTransaction, updateAccount as updateAccountInDB, updateTransaction as updateTransactionInDB, updateDebt as updateDebtInDB, updateGoal as updateGoalInDB } from '@/lib/db';
 import { useAuth } from '@/lib/auth';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Transaction } from '@/types';
@@ -25,9 +25,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
   const updateAccount = useStore((state) => state.updateAccount);
   const updateTransaction = useStore((state) => state.updateTransaction);
   const updateDebt = useStore((state) => state.updateDebt);
+  const updateGoal = useStore((state) => state.updateGoal);
   const accounts = useStore((state) => state.accounts);
   const categories = useStore((state) => state.categories);
   const debts = useStore((state) => state.debts);
+  const goals = useStore((state) => state.goals);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [needsExchangeRate, setNeedsExchangeRate] = useState(false);
@@ -38,13 +40,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       type: transaction.type,
       amount: transaction.amount,
       description: transaction.description,
-      date: transaction.date instanceof Date 
-        ? transaction.date.toISOString().split('T')[0] 
+      date: transaction.date instanceof Date
+        ? transaction.date.toISOString().split('T')[0]
         : new Date(transaction.date).toISOString().split('T')[0],
       accountId: transaction.accountId,
       fromAccountId: transaction.fromAccountId,
       categoryId: transaction.categoryId,
       debtId: transaction.debtId,
+      goalId: transaction.goalId,
       exchangeRate: transaction.exchangeRate,
     } : {
       type: 'EXPENSE' as const,
@@ -62,6 +65,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
   const fromAccountId = watch('fromAccountId');
   const toAccountId = watch('accountId');
   const debtId = watch('debtId');
+  const goalId = watch('goalId');
   const amount = watch('amount') as number;
   const exchangeRate = watch('exchangeRate') as number;
 
@@ -126,19 +130,40 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
     // Validate PAY_DEBT
     if (data.type === 'PAY_DEBT') {
       if (!data.debtId) return "Debes seleccionar una deuda";
-      
+
       const debt = debts.find(d => d.id === data.debtId);
       const account = accounts.find(a => a.id === data.accountId);
-      
+
       if (!debt) return "La deuda seleccionada no existe";
       if (!account) return "La cuenta seleccionada no existe";
-      
+
       const remainingDebt = debt.totalAmount - debt.paidAmount;
       if (remainingDebt <= 0) return "Esta deuda ya está completamente pagada";
       if (data.amount > remainingDebt) {
         return `El monto excede la deuda restante. Máximo: ${debt.currency === 'USD' ? '$' : 'S/'} ${remainingDebt.toFixed(2)}`;
       }
-      
+
+      if (account.balance < data.amount) {
+        return `Saldo insuficiente. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}`;
+      }
+    }
+
+    // Validate SAVE_FOR_GOAL
+    if (data.type === 'SAVE_FOR_GOAL') {
+      if (!data.goalId) return "Debes seleccionar una meta";
+
+      const goal = goals.find(g => g.id === data.goalId);
+      const account = accounts.find(a => a.id === data.accountId);
+
+      if (!goal) return "La meta seleccionada no existe";
+      if (!account) return "La cuenta seleccionada no existe";
+
+      const remainingGoal = goal.targetAmount - goal.currentAmount;
+      if (remainingGoal <= 0) return "Esta meta ya está completamente alcanzada";
+      if (data.amount > remainingGoal) {
+        return `El monto excede la meta restante. Máximo: ${goal.currency === 'USD' ? '$' : 'S/'} ${remainingGoal.toFixed(2)}`;
+      }
+
       if (account.balance < data.amount) {
         return `Saldo insuficiente. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}`;
       }
@@ -175,6 +200,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       // Remove undefined fields (Firebase doesn't accept them)
       if (!data.categoryId) delete newTransaction.categoryId;
       if (!data.debtId) delete newTransaction.debtId;
+      if (!data.goalId) delete newTransaction.goalId;
       if (!data.exchangeRate) delete newTransaction.exchangeRate;
 
       // Calculate converted amount for cross-currency transfers
@@ -224,6 +250,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           addChange(transaction.accountId, -amountToRevert);
         } else if (transaction.type === 'PAY_DEBT') {
           addChange(transaction.accountId, transaction.amount);
+        } else if (transaction.type === 'SAVE_FOR_GOAL') {
+          addChange(transaction.accountId, transaction.amount);
         }
       }
 
@@ -237,6 +265,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         const amountToAdd = newTransaction.convertedAmount || data.amount;
         addChange(data.accountId, amountToAdd);
       } else if (data.type === 'PAY_DEBT') {
+        addChange(data.accountId, -data.amount);
+      } else if (data.type === 'SAVE_FOR_GOAL') {
         addChange(data.accountId, -data.amount);
       }
 
@@ -280,6 +310,34 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           const newPaidAmount = debt.paidAmount - transaction.amount;
           updateDebt(transaction.debtId, { paidAmount: newPaidAmount });
           await updateDebtInDB(transaction.debtId, { paidAmount: newPaidAmount });
+        }
+      }
+
+      // 5. Update Goal if this is a goal saving
+      if (data.type === 'SAVE_FOR_GOAL' && data.goalId) {
+        const goal = goals.find(g => g.id === data.goalId);
+        if (goal) {
+          let newCurrentAmount = goal.currentAmount;
+
+          // If editing, revert the old saving first
+          if (transaction && transaction.type === 'SAVE_FOR_GOAL' && transaction.goalId === data.goalId) {
+            newCurrentAmount -= transaction.amount;
+          }
+
+          // Apply the new saving
+          newCurrentAmount += data.amount;
+
+          // Update both store and DB
+          updateGoal(data.goalId, { currentAmount: newCurrentAmount });
+          await updateGoalInDB(data.goalId, { currentAmount: newCurrentAmount });
+        }
+      } else if (transaction && transaction.type === 'SAVE_FOR_GOAL' && transaction.goalId) {
+        // If editing and changing away from SAVE_FOR_GOAL, revert the goal saving
+        const goal = goals.find(g => g.id === transaction.goalId);
+        if (goal) {
+          const newCurrentAmount = goal.currentAmount - transaction.amount;
+          updateGoal(transaction.goalId, { currentAmount: newCurrentAmount });
+          await updateGoalInDB(transaction.goalId, { currentAmount: newCurrentAmount });
         }
       }
 
@@ -352,6 +410,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
             <option value="INCOME">Ingreso</option>
             <option value="TRANSFER">Transferencia</option>
             <option value="PAY_DEBT">Pagar Deuda</option>
+            <option value="SAVE_FOR_GOAL">Ahorrar para Meta</option>
           </select>
           {errors.type && <p className="text-xs text-red-500">{errors.type.message}</p>}
         </div>
@@ -382,7 +441,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
       </div>
 
-      {transactionType !== 'PAY_DEBT' && transactionType !== 'TRANSFER' && (
+      {transactionType !== 'PAY_DEBT' && transactionType !== 'SAVE_FOR_GOAL' && transactionType !== 'TRANSFER' && (
         <div className="space-y-2">
           <label className="text-sm font-medium">
             {transactionType === 'INCOME' ? 'Fuente de Ingreso' : 'Categoría'}
@@ -430,6 +489,28 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
             })}
           </select>
           {errors.debtId && <p className="text-xs text-red-500">{errors.debtId.message}</p>}
+        </div>
+      )}
+
+      {transactionType === 'SAVE_FOR_GOAL' && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Meta a Ahorrar</label>
+          <select
+            {...register('goalId')}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="transaction-goal-select"
+          >
+            <option value="">Seleccionar meta</option>
+            {goals.map(goal => {
+              const remaining = goal.targetAmount - goal.currentAmount;
+              return (
+                <option key={goal.id} value={goal.id}>
+                  {goal.name} - Restante: {goal.currency === 'USD' ? '$' : 'S/'} {remaining.toFixed(2)}
+                </option>
+              );
+            })}
+          </select>
+          {errors.goalId && <p className="text-xs text-red-500">{errors.goalId.message}</p>}
         </div>
       )}
 
@@ -500,7 +581,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       ) : (
         <div className="space-y-2">
           <label className="text-sm font-medium">
-            {transactionType === 'PAY_DEBT' ? 'Cuenta para Pagar' : 'Cuenta'}
+            {(transactionType === 'PAY_DEBT' || transactionType === 'SAVE_FOR_GOAL') ? 'Cuenta para ' + (transactionType === 'PAY_DEBT' ? 'Pagar' : 'Ahorrar') : 'Cuenta'}
           </label>
           <select
             {...register('accountId')}
@@ -532,9 +613,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
 
       <Button type="submit" className="w-full" disabled={isSubmitting || hasError} data-testid="save-transaction-button">
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {transaction ? 'Actualizar Transacción' : 
-          transactionType === 'TRANSFER' ? 'Transferir' : 
-          transactionType === 'PAY_DEBT' ? 'Pagar Deuda' : 
+        {transaction ? 'Actualizar Transacción' :
+          transactionType === 'TRANSFER' ? 'Transferir' :
+          transactionType === 'PAY_DEBT' ? 'Pagar Deuda' :
+          transactionType === 'SAVE_FOR_GOAL' ? 'Ahorrar para Meta' :
           'Guardar Transacción'}
       </Button>
     </form>

@@ -81,6 +81,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
     const accountId = txData.accountId;
     const fromAccountId = txData.fromAccountId;
     const debtId = txData.debtId;
+    const goalId = txData.goalId;
 
     // 2. Update account balances (revert the transaction effects)
     const updatePromises = [];
@@ -145,6 +146,28 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
           const currentPaidAmount = Number(debtDoc.data().paidAmount) || 0;
           const newPaidAmount = currentPaidAmount - amount;
           updatePromises.push(updateDoc(debtRef, { paidAmount: Math.max(0, newPaidAmount) }));
+        }
+      }
+    } else if (type === 'SAVE_FOR_GOAL') {
+      // Revert account balance (add back the saving)
+      if (accountId) {
+        const accountRef = doc(db, 'accounts', accountId);
+        const accountDoc = await getDoc(accountRef);
+        if (accountDoc.exists()) {
+          const currentBalance = Number(accountDoc.data().balance) || 0;
+          const newBalance = currentBalance + amount;
+          updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
+        }
+      }
+
+      // Revert goal currentAmount (subtract the saving)
+      if (goalId) {
+        const goalRef = doc(db, 'goals', goalId);
+        const goalDoc = await getDoc(goalRef);
+        if (goalDoc.exists()) {
+          const currentCurrentAmount = Number(goalDoc.data().currentAmount) || 0;
+          const newCurrentAmount = currentCurrentAmount - amount;
+          updatePromises.push(updateDoc(goalRef, { currentAmount: Math.max(0, newCurrentAmount) }));
         }
       }
     }

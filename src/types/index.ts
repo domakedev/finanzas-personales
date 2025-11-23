@@ -13,11 +13,12 @@ export interface Transaction {
   amount: number;
   description: string;
   date: Date;
-  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'PAY_DEBT';
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'PAY_DEBT' | 'SAVE_FOR_GOAL';
   categoryId?: string;
   accountId: string;
   fromAccountId?: string; // For transfers
   debtId?: string; // For debt payments
+  goalId?: string; // For goal savings
   exchangeRate?: number; // Exchange rate for cross-currency transfers
   convertedAmount?: number; // Converted amount for destination account
   fromCurrency?: string; // Source currency for transfers

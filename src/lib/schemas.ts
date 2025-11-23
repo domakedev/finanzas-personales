@@ -13,11 +13,12 @@ export const TransactionSchema = z.object({
   amount: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
   description: z.string().min(1, "La descripción es obligatoria"),
   date: z.coerce.date().max(new Date(), "No puedes crear transacciones con fechas futuras"),
-  type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER', 'PAY_DEBT']),
+  type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER', 'PAY_DEBT', 'SAVE_FOR_GOAL']),
   categoryId: z.string().optional(),
   accountId: z.string().min(1, "Selecciona una cuenta"),
   fromAccountId: z.string().optional(), // For transfers
   debtId: z.string().optional(), // For debt payments
+  goalId: z.string().optional(), // For goal savings
   exchangeRate: z.coerce.number().positive().optional(), // For cross-currency transfers
 });
 
@@ -40,7 +41,10 @@ export const GoalSchema = z.object({
   targetAmount: z.coerce.number().min(0.01, "La meta debe ser mayor a 0"),
   currentAmount: z.coerce.number().min(0, "El ahorro actual no puede ser negativo"),
   currency: z.enum(['PEN', 'USD']),
-  deadline: z.coerce.date().optional(),
+  deadline: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : val),
+    z.coerce.date().optional()
+  ),
 });
 
 export type AccountFormData = z.infer<typeof AccountSchema>;

@@ -10,12 +10,30 @@ import { TransactionForm } from '@/components/forms/TransactionForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { deleteTransactionAtomic } from '@/lib/db';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2 } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, PiggyBank, BanknoteArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
 
 export default function TransactionsPage() {
+  // Colores para diferentes tipos de transacción
+  const TRANSACTION_COLORS = {
+    INCOME: 'bg-green-50 border-green-200',
+    EXPENSE: 'bg-red-50 border-red-200',
+    TRANSFER: 'bg-blue-50 border-blue-200',
+    PAY_DEBT: 'bg-purple-50 border-purple-200',
+    SAVE_FOR_GOAL: 'bg-blue-50 border-blue-200',
+  };
+
+  // Colores para las etiquetas de tipo (más oscuros)
+  const TYPE_LABEL_COLORS = {
+    INCOME: 'bg-green-600 text-white',
+    EXPENSE: 'bg-red-600 text-white',
+    TRANSFER: 'bg-blue-600 text-white',
+    PAY_DEBT: 'bg-purple-600 text-white',
+    SAVE_FOR_GOAL: 'bg-blue-600 text-white',
+  };
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; transactionId: string | null }>({
@@ -31,9 +49,11 @@ export default function TransactionsPage() {
   const accounts = useStore((state) => state.accounts);
   const categories = useStore((state) => state.categories);
   const debts = useStore((state) => state.debts);
+  const goals = useStore((state) => state.goals);
   const removeTransaction = useStore((state) => state.removeTransaction);
   const updateAccountInStore = useStore((state) => state.updateAccount);
   const updateDebtInStore = useStore((state) => state.updateDebt);
+  const updateGoalInStore = useStore((state) => state.updateGoal);
 
   const handleDelete = async (transactionId: string) => {
     try {
@@ -74,6 +94,20 @@ export default function TransactionsPage() {
             updateDebtInStore(debt.id, { paidAmount: newPaidAmount });
           }
         }
+      } else if (transaction.type === 'SAVE_FOR_GOAL') {
+        // Revert account balance: add back the amount
+        const account = accounts.find(a => a.id === transaction.accountId);
+        if (account) {
+          updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
+        }
+        // Revert goal currentAmount: subtract the amount
+        if (transaction.goalId) {
+          const goal = goals.find(g => g.id === transaction.goalId);
+          if (goal) {
+            const newCurrentAmount = goal.currentAmount - transaction.amount;
+            updateGoalInStore(goal.id, { currentAmount: newCurrentAmount });
+          }
+        }
       }
 
       removeTransaction(transactionId);
@@ -89,6 +123,21 @@ export default function TransactionsPage() {
 
   const getDebtName = (id: string) => {
     return debts.find(d => d.id === id)?.name || 'Deuda desconocida';
+  };
+
+  const getGoalName = (id: string) => {
+    return goals.find(g => g.id === id)?.name || 'Meta desconocida';
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'INCOME': return 'Ingreso';
+      case 'EXPENSE': return 'Gasto';
+      case 'TRANSFER': return 'Transferencia';
+      case 'PAY_DEBT': return 'Pago Deuda';
+      case 'SAVE_FOR_GOAL': return 'Ahorro Meta';
+      default: return type;
+    }
   };
 
   return (
@@ -117,12 +166,21 @@ export default function TransactionsPage() {
                   if (tx.type === 'TRANSFER') {
                     return <ArrowDownLeft className="h-5 w-5 rotate-90" />;
                   }
+                  if (tx.type === 'PAY_DEBT') {
+                    return <BanknoteArrowDown className="h-5 w-5" />;
+                  }
+                  if (tx.type === 'SAVE_FOR_GOAL') {
+                    return <PiggyBank className="h-5 w-5" />;
+                  }
                   return tx.type === 'INCOME' ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />;
                 };
 
                 const getTransactionColor = () => {
-                  if (tx.type === 'TRANSFER') return 'bg-blue-100 text-blue-600';
-                  return tx.type === 'INCOME' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
+                  if (tx.type === 'TRANSFER') return 'bg-blue-200/50 text-blue-700';
+                  if (tx.type === 'PAY_DEBT') return 'bg-purple-200/50 text-purple-700';
+                  if (tx.type === 'SAVE_FOR_GOAL') return 'bg-blue-200/50 text-blue-700';
+                  if (tx.type === 'INCOME') return 'bg-green-200/50 text-green-700';
+                  return 'bg-red-200/50 text-red-700';
                 };
 
                 const getAccountInfo = () => {
@@ -160,8 +218,13 @@ export default function TransactionsPage() {
                 };
 
                 return (
-                  <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors" data-testid={`transaction-${tx.description}`}>
-                    <div className="flex items-center gap-4 flex-1">
+                  <div key={tx.id} className={`relative overflow-hidden flex items-center justify-between p-4 border rounded-lg transition-colors ${TRANSACTION_COLORS[tx.type]}`} data-testid={`transaction-${tx.description}`}>
+                    {/* Etiqueta de tipo en esquina superior izquierda */}
+                    <div className={`absolute top-0 left-0 px-2 py-1 rounded-br-lg text-xs font-medium ${TYPE_LABEL_COLORS[tx.type]}`}>
+                      {getTypeLabel(tx.type)}
+                    </div>
+
+                    <div className="flex items-center gap-4 flex-1 my-2">
                       <div className={`p-2 rounded-full ${getTransactionColor()}`}>
                         {getTransactionIcon()}
                       </div>
@@ -169,9 +232,6 @@ export default function TransactionsPage() {
                         <p className="font-medium">{tx.description}</p>
                         <p className="text-sm text-muted-foreground">
                           {format(new Date(tx.date), 'dd/MM/yyyy')} • {getAccountInfo()}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Tipo: {tx.type === 'EXPENSE' ? 'Gasto' : tx.type === 'INCOME' ? 'Ingreso' : tx.type === 'TRANSFER' ? 'Transferencia' : 'Pago de Deuda'}
                         </p>
                         {tx.categoryId && (
                           <p className="text-xs text-muted-foreground mt-1">
@@ -193,6 +253,11 @@ export default function TransactionsPage() {
                             Deuda: {getDebtName(tx.debtId)}
                           </p>
                         )}
+                        {tx.type === 'SAVE_FOR_GOAL' && tx.goalId && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Meta: {getGoalName(tx.goalId)}
+                          </p>
+                        )}
                         {tx.type === 'TRANSFER' && tx.exchangeRate && (
                           <p className="text-xs text-muted-foreground mt-1">
                             Tasa de cambio: {tx.exchangeRate}
@@ -202,11 +267,13 @@ export default function TransactionsPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className={`font-bold text-right ${
-                        tx.type === 'TRANSFER' ? 'text-blue-600' :
-                        tx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'
+                        tx.type === 'TRANSFER' ? 'text-blue-800' :
+                        tx.type === 'PAY_DEBT' ? 'text-purple-800' :
+                        tx.type === 'SAVE_FOR_GOAL' ? 'text-blue-800' :
+                        tx.type === 'INCOME' ? 'text-green-800' : 'text-red-800'
                       }`}>
                         <div className="flex items-center gap-1">
-                          <span>{tx.type === 'TRANSFER' ? '↔' : tx.type === 'INCOME' ? '+' : '-'}</span>
+                          <span>{tx.type === 'TRANSFER' ? '↔' : (tx.type === 'INCOME' || tx.type === 'PAY_DEBT' || tx.type === 'SAVE_FOR_GOAL') ? '+' : '-'}</span>
                           {getAmountDisplay()}
                         </div>
                       </div>

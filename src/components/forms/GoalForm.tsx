@@ -36,23 +36,29 @@ export const GoalForm: React.FC<GoalFormProps> = ({ onSuccess, goal }) => {
     if (!user) return;
     setIsSubmitting(true);
     try {
+      // Handle optional deadline - remove if empty
+      const goalData = { ...data };
+      if (!goalData.deadline || goalData.deadline === '') {
+        delete goalData.deadline;
+      }
+
       if (goal) {
-        updateGoalInStore(goal.id, data);
-        await updateGoal(goal.id, data);
+        updateGoalInStore(goal.id, goalData);
+        await updateGoal(goal.id, goalData);
       } else {
         // Add to Firebase and get the real document ID
-        const docRef = await addGoal(user.uid, data);
-        
+        const docRef = await addGoal(user.uid, goalData);
+
         // Create goal with the real Firebase ID
         const goalWithRealId = {
-          ...data,
+          ...goalData,
           id: docRef.id  // Use Firebase's generated ID
         };
-        
+
         // Add to store with the correct ID
         addGoalToStore(goalWithRealId);
       }
-      
+
       reset();
       onSuccess();
     } catch (error) {
