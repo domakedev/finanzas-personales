@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AccountSchema } from '@/lib/schemas';
+import { AccountSchema, AccountFormData } from '@/lib/schemas';
 import { Button } from '@/components/ui/Button';
 import { useStore } from '@/lib/store';
 import { addAccount, updateAccount } from '@/lib/db';
@@ -29,8 +29,9 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
 
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<z.infer<typeof AccountSchema>>({
-    resolver: zodResolver(AccountSchema),
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<AccountFormData>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(AccountSchema) as any,
     defaultValues: {
       type: account?.type || 'BANK',
       currency: account?.currency || 'PEN',
@@ -57,7 +58,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
     }
   };
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: AccountFormData) => {
     if (!user) {
       setError("No estás autenticado.");
       return;
@@ -93,9 +94,10 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
       
       reset();
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error saving account:", err);
-      setError(err.message || "Error al guardar la cuenta. Inténtalo de nuevo.");
+      const message = err instanceof Error ? err.message : "Error al guardar la cuenta. Inténtalo de nuevo.";
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -116,7 +118,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
         <select
           {...register('type')}
           onChange={(e) => {
-            setValue('type', e.target.value as any);
+            setValue('type', e.target.value as 'BANK' | 'WALLET' | 'CASH');
             setSelectedOption('');
             setValue('name', '');
           }}
@@ -146,10 +148,10 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
               }`}
               data-testid={`account-option-${option.id}`}
             >
-              {(option as any).logo ? (
+              {'logo' in option ? (
                 <div className="w-12 h-12 relative">
-                  <Image 
-                    src={(option as any).logo} 
+                  <Image
+                    src={option.logo}
                     alt={option.name}
                     fill
                     className="object-contain"
@@ -161,7 +163,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
                 </div>
               ) : (
                 <div className="w-12 h-12 flex items-center justify-center text-3xl">
-                  {(option as any).icon}
+                  {option.icon}
                 </div>
               )}
               <span className="text-xs font-medium text-center">{option.name}</span>
