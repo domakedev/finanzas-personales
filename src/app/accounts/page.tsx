@@ -87,7 +87,7 @@ export default function AccountsPage() {
           <Card key={account.id} className="cursor-pointer hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium" data-testid={`account-name-${account.name}`}>
-                {account.name}
+                {account.name} ({account.currency})
               </CardTitle>
               <div className="flex items-center gap-2">
                 <div className="text-muted-foreground">

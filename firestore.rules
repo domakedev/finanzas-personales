@@ -36,5 +36,17 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
       allow read, update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
+
+    // Rules for Budgets
+    match /budgets/{budgetId} {
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow read, update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+
+    // Rules for Categories
+    match /categories/{categoryId} {
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow read, update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
   }
 }

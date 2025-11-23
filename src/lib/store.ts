@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Account, Transaction, Debt, Goal } from '@/types';
+import { Account, Transaction, Debt, Goal, Budget, Category } from '@/types';
 import { User } from 'firebase/auth';
 
 interface AppState {
@@ -27,6 +27,15 @@ interface AppState {
   setGoals: (goals: Goal[]) => void;
   addGoal: (goal: Goal) => void;
   updateGoal: (id: string, goal: Partial<Goal>) => void;
+
+  currentBudget: Budget | null;
+  setCurrentBudget: (budget: Budget | null) => void;
+
+  categories: Category[];
+  setCategories: (categories: Category[]) => void;
+  addCategory: (category: Category) => void;
+  updateCategory: (id: string, category: Partial<Category>) => void;
+  removeCategory: (id: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -66,5 +75,18 @@ export const useStore = create<AppState>((set) => ({
   addGoal: (goal) => set((state) => ({ goals: [...state.goals, goal] })),
   updateGoal: (id, updated) => set((state) => ({
     goals: state.goals.map((g) => g.id === id ? { ...g, ...updated } : g)
+  })),
+
+  currentBudget: null,
+  setCurrentBudget: (budget) => set({ currentBudget: budget }),
+
+  categories: [],
+  setCategories: (categories) => set({ categories }),
+  addCategory: (category) => set((state) => ({ categories: [...state.categories, category] })),
+  updateCategory: (id, updated) => set((state) => ({
+    categories: state.categories.map((c) => c.id === id ? { ...c, ...updated } : c)
+  })),
+  removeCategory: (id) => set((state) => ({
+    categories: state.categories.filter((c) => c.id !== id)
   })),
 }));

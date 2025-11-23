@@ -25,6 +25,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
   const updateAccount = useStore((state) => state.updateAccount);
   const updateTransaction = useStore((state) => state.updateTransaction);
   const accounts = useStore((state) => state.accounts);
+  const categories = useStore((state) => state.categories);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [needsExchangeRate, setNeedsExchangeRate] = useState(false);
@@ -333,10 +334,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         >
           <option value="">{transactionType === 'INCOME' ? 'Seleccionar fuente' : 'Sin categoría'}</option>
           {transactionType === 'INCOME' 
-            ? INCOME_SOURCES.map(src => (
+            ? [
+                ...INCOME_SOURCES,
+                ...categories.filter(c => c.type === 'INCOME')
+              ].map(src => (
                 <option key={src.id} value={src.id}>{src.icon} {src.name}</option>
               ))
-            : TRANSACTION_CATEGORIES.map(cat => (
+            : [
+                ...TRANSACTION_CATEGORIES,
+                ...categories.filter(c => c.type === 'EXPENSE')
+              ].map(cat => (
                 <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
               ))
           }
@@ -355,7 +362,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
               >
                 <option value="">Seleccionar cuenta</option>
                 {accounts.map(acc => (
-                  <option key={acc.id} value={acc.id}>{acc.name} ({acc.currency})</option>
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.currency}) - Disp: {acc.currency === 'USD' ? '$' : 'S/'} {acc.balance.toFixed(2)}
+                  </option>
                 ))}
               </select>
               {errors.fromAccountId && <p className="text-xs text-red-500">{errors.fromAccountId.message}</p>}
@@ -370,7 +379,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
               >
                 <option value="">Seleccionar cuenta</option>
                 {accounts.map(acc => (
-                  <option key={acc.id} value={acc.id}>{acc.name} ({acc.currency})</option>
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.currency}) - Disp: {acc.currency === 'USD' ? '$' : 'S/'} {acc.balance.toFixed(2)}
+                  </option>
                 ))}
               </select>
               {errors.accountId && <p className="text-xs text-red-500">{errors.accountId.message}</p>}
@@ -413,7 +424,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           >
             <option value="">Seleccionar cuenta</option>
             {accounts.map(acc => (
-              <option key={acc.id} value={acc.id}>{acc.name} ({acc.currency})</option>
+              <option key={acc.id} value={acc.id}>
+                {acc.name} ({acc.currency}) - Disp: {acc.currency === 'USD' ? '$' : 'S/'} {acc.balance.toFixed(2)}
+              </option>
             ))}
           </select>
           {errors.accountId && <p className="text-xs text-red-500">{errors.accountId.message}</p>}

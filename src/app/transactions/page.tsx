@@ -13,6 +13,7 @@ import { deleteTransactionAtomic } from '@/lib/db';
 import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
+import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
 
 export default function TransactionsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,6 +28,7 @@ export default function TransactionsPage() {
   });
   const transactions = useStore((state) => state.transactions);
   const accounts = useStore((state) => state.accounts);
+  const categories = useStore((state) => state.categories);
   const removeTransaction = useStore((state) => state.removeTransaction);
   const updateAccountInStore = useStore((state) => state.updateAccount);
 
@@ -147,6 +149,21 @@ export default function TransactionsPage() {
                         <p className="text-sm text-muted-foreground">
                           {format(new Date(tx.date), 'dd/MM/yyyy')} • {getAccountInfo()}
                         </p>
+                        {tx.categoryId && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {(() => {
+                              const allCategories = [...TRANSACTION_CATEGORIES, ...INCOME_SOURCES, ...categories];
+                              const category = allCategories.find(c => c.id === tx.categoryId);
+                              return category ? (
+                                <span className="flex items-center gap-1">
+                                  {category.icon} {category.name}
+                                </span>
+                              ) : (
+                                <span className="text-red-400 italic">Categoría eliminada</span>
+                              );
+                            })()}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

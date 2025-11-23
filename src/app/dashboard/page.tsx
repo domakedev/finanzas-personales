@@ -13,6 +13,7 @@ import { AccountForm } from '@/components/forms/AccountForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
+import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
 
 export default function Dashboard() {
    const { user } = useAuth();
@@ -273,6 +274,15 @@ export default function Dashboard() {
                       <div>
                         <p className="font-medium">{tx.description}</p>
                         <p className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString('es-PE')}</p>
+                        {tx.categoryId && (
+                          <p className="text-[10px] text-muted-foreground">
+                            {(() => {
+                              const allCategories = [...TRANSACTION_CATEGORIES, ...INCOME_SOURCES, ...useStore.getState().categories];
+                              const category = allCategories.find(c => c.id === tx.categoryId);
+                              return category ? category.name : <span className="text-red-400 italic">Categoría eliminada</span>;
+                            })()}
+                          </p>
+                        )}
                       </div>
                       <p className="font-bold text-green-600">+S/ {tx.amount.toFixed(2)}</p>
                     </div>
@@ -299,6 +309,15 @@ export default function Dashboard() {
                       <div>
                         <p className="font-medium">{tx.description}</p>
                         <p className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString('es-PE')}</p>
+                        {tx.categoryId && (
+                          <p className="text-[10px] text-muted-foreground">
+                            {(() => {
+                              const allCategories = [...TRANSACTION_CATEGORIES, ...INCOME_SOURCES, ...useStore.getState().categories];
+                              const category = allCategories.find(c => c.id === tx.categoryId);
+                              return category ? category.name : <span className="text-red-400 italic">Categoría eliminada</span>;
+                            })()}
+                          </p>
+                        )}
                       </div>
                       <p className="font-bold text-red-600">-S/ {tx.amount.toFixed(2)}</p>
                     </div>

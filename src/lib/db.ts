@@ -12,7 +12,7 @@ import {
   getDoc,
   Timestamp 
 } from 'firebase/firestore';
-import { Account, Transaction, Debt, Goal } from '@/types';
+import { Account, Transaction, Debt, Goal, Budget, Category } from '@/types';
 
 // Helper to convert Firestore data to our types
 const convertDoc = <T>(doc: any): T => ({ id: doc.id, ...doc.data() });
@@ -174,4 +174,47 @@ export const updateGoal = async (goalId: string, goal: Partial<Goal>) => {
 
 export const deleteGoal = async (goalId: string) => {
   return deleteDoc(doc(db, 'goals', goalId));
+};
+
+// Budgets
+export const getBudget = async (userId: string, month: number, year: number): Promise<Budget | null> => {
+  const q = query(
+    collection(db, 'budgets'), 
+    where('userId', '==', userId),
+    where('month', '==', month),
+    where('year', '==', year)
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+  return convertDoc<Budget>(snapshot.docs[0]);
+};
+
+export const saveBudget = async (userId: string, budget: Omit<Budget, 'id' | 'userId'>) => {
+  // Check if budget exists for this month/year
+  const existingBudget = await getBudget(userId, budget.month, budget.year);
+  
+  if (existingBudget && existingBudget.id) {
+    return updateDoc(doc(db, 'budgets', existingBudget.id), budget);
+  } else {
+    return addDoc(collection(db, 'budgets'), { ...budget, userId });
+  }
+};
+
+// Categories
+export const getCategories = async (userId: string): Promise<Category[]> => {
+  const q = query(collection(db, 'categories'), where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(convertDoc<Category>);
+};
+
+export const addCategory = async (userId: string, category: Omit<Category, 'id' | 'userId'>) => {
+  return addDoc(collection(db, 'categories'), { ...category, userId });
+};
+
+export const updateCategory = async (categoryId: string, category: Partial<Category>) => {
+  return updateDoc(doc(db, 'categories', categoryId), category);
+};
+
+export const deleteCategory = async (categoryId: string) => {
+  return deleteDoc(doc(db, 'categories', categoryId));
 };

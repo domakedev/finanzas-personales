@@ -8,36 +8,40 @@ describe('Transactions CRUD Operations', () => {
     // Crear cuenta Interbank Test
     cy.get('[data-testid="new-account-button"]').click();
     cy.get('[data-testid="modal-title"]').should('contain', 'Nueva Cuenta');
-    cy.wait(500);
+    cy.get('[data-testid="account-type-select"]').should('be.visible');
 
-    cy.get('[data-testid="account-type-select"]').select('BANK', {force: true});
-    cy.get('[data-testid="account-currency-select"]').select('PEN', {force: true});
-    cy.get('[data-testid="account-balance-input"]').clear().type('1000', {force: true});
+    cy.get('[data-testid="account-type-select"]').select('BANK');
+    cy.wait(500);
+    cy.get('[data-testid="account-currency-select"]').select('PEN');
+    cy.get('[data-testid="account-balance-input"]').clear().type('1000');
 
     cy.get('[data-testid="account-option-interbank"]').click({ force: true });
-    cy.get('[data-testid="account-name-input"]').type(' Test', {force: true});
+    cy.wait(500);
+    cy.get('[data-testid="account-name-input"]').type(' Test');
 
     cy.get('[data-testid="save-account-button"]').click({force: true});
-    cy.wait(5000);
+    cy.wait(500);
+    cy.get('[data-testid="modal-title"]').should('not.exist');
 
     // Crear cuenta BCP Dollars
     cy.get('[data-testid="new-account-button"]').click();
-    cy.wait(500);
+    cy.get('[data-testid="modal-title"]').should('contain', 'Nueva Cuenta');
+    cy.get('[data-testid="account-type-select"]').should('be.visible');
 
-    cy.get('[data-testid="account-type-select"]').select('BANK', {force: true});
-    cy.get('[data-testid="account-currency-select"]').select('USD', {force: true});
+    cy.get('[data-testid="account-type-select"]').select('BANK');
+    cy.wait(500);
+    cy.get('[data-testid="account-currency-select"]').select('USD');
     cy.get('[data-testid="account-balance-input"]').clear().type('500', {force: true});
 
     cy.get('[data-testid="account-option-bcp"]').click({ force: true });
+    cy.wait(500);
     cy.get('[data-testid="account-name-input"]').type(' Dollars', {force: true});
 
     cy.get('[data-testid="save-account-button"]').click({force: true});
-    cy.wait(5000);
+    cy.wait(500);
   });
 
   beforeEach(() => {
-    // Login antes de cada test
-    cy.login();
     // Navegar a la página de transacciones
     cy.visit('/transactions');
     // Esperar a que cargue la página
@@ -58,7 +62,7 @@ describe('Transactions CRUD Operations', () => {
       cy.get('[data-testid="transaction-amount-input"]').clear().type('50');
       cy.get('[data-testid="transaction-description-input"]').type('Almuerzo');
       cy.get('[data-testid="transaction-category-select"]').select('food');
-      cy.get('[data-testid="transaction-account-select"]').select('Interbank Test (PEN)');
+      cy.get('[data-testid="transaction-account-select"]').select('Interbank Test (PEN) - Disp: S/ 1000.00');
       cy.get('[data-testid="transaction-date-input"]').type('2023-10-01');
 
       // Guardar
@@ -80,7 +84,7 @@ describe('Transactions CRUD Operations', () => {
       cy.get('[data-testid="transaction-amount-input"]').clear().type('1000');
       cy.get('[data-testid="transaction-description-input"]').type('Salario');
       cy.get('[data-testid="transaction-category-select"]').select('salary');
-      cy.get('[data-testid="transaction-account-select"]').select('BCP Dollars (USD)');
+      cy.get('[data-testid="transaction-account-select"]').select('BCP Dollars (USD) - Disp: $ 500.00');
       cy.get('[data-testid="transaction-date-input"]').type('2023-10-01');
 
       cy.get('[data-testid="save-transaction-button"]').click();
@@ -99,8 +103,8 @@ describe('Transactions CRUD Operations', () => {
       cy.get('[data-testid="transaction-type-select"]').select('TRANSFER');
       cy.get('[data-testid="transaction-amount-input"]').clear().type('200');
       cy.get('[data-testid="transaction-description-input"]').type('Transferencia de prueba');
-      cy.get('[data-testid="transaction-from-account-select"]').select('Interbank Test (PEN)');
-      cy.get('[data-testid="transaction-to-account-select"]').select('BCP Dollars (USD)');
+      cy.get('[data-testid="transaction-from-account-select"]').select('Interbank Test (PEN) - Disp: S/ 950.00');
+      cy.get('[data-testid="transaction-to-account-select"]').select('BCP Dollars (USD) - Disp: $ 1500.00');
       cy.get('[data-testid="transaction-exchange-rate-input"]').clear().type('3.8');
       cy.get('[data-testid="transaction-date-input"]').type('2023-10-01');
 

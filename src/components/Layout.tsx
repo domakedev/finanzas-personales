@@ -13,7 +13,9 @@ import {
   Moon,
   Menu,
   X,
-  LogOut
+  LogOut,
+  PieChart,
+  Tag
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { cn } from '@/lib/utils';
@@ -71,6 +73,8 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Flujo', href: '/transactions', icon: ArrowRightLeft },
     { name: 'Deudas', href: '/debts', icon: CreditCard },
     { name: 'Metas', href: '/goals', icon: Sprout },
+    { name: 'Presupuestos', href: '/budgets', icon: PieChart },
+    { name: 'Categorías', href: '/categories', icon: Tag },
   ];
 
   return (

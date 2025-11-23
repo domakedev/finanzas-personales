@@ -40,3 +40,21 @@ export interface Goal {
   currency: 'PEN' | 'USD';
   deadline?: Date;
 }
+
+export interface Budget {
+  id?: string;
+  userId: string;
+  month: number; // 0-11
+  year: number;
+  totalIncome: number;
+  categoryLimits: Record<string, number>; // categoryId -> limit amount
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  userId?: string; // Optional for system categories
+  isSystem?: boolean;
+  type: 'EXPENSE' | 'INCOME';
+}
