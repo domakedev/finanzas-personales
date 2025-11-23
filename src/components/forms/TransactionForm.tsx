@@ -44,7 +44,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       exchangeRate: transaction.exchangeRate,
     } : {
       type: 'EXPENSE',
-      date: new Date().toISOString().split('T')[0], // Format YYYY-MM-DD for input type="date"
+      date: (() => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      })(), // Format YYYY-MM-DD for input type="date" using local date
     }
   });
 
