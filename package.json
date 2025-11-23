@@ -9,8 +9,8 @@
     "lint": "eslint",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run",
-    "test:e2e": "cypress run --spec 'cypress/e2e/accounts.cy.ts'",
-    "test:e2e:headed": "cypress run --spec 'cypress/e2e/accounts.cy.ts' --headed --browser chrome"
+    "test:e2e": "cypress run --spec 'cypress/e2e/**/*.cy.ts'",
+    "test:e2e:headed": "cypress run --spec 'cypress/e2e/**/*.cy.ts' --headed --browser chrome"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

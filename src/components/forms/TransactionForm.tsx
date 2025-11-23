@@ -23,6 +23,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
   const user = useStore((state) => state.user) || authUser;
   const addTransactionToStore = useStore((state) => state.addTransaction);
   const updateAccount = useStore((state) => state.updateAccount);
+  const updateTransaction = useStore((state) => state.updateTransaction);
   const accounts = useStore((state) => state.accounts);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -224,6 +225,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           Object.entries(newTransaction).filter(([_, v]) => v !== undefined)
         );
         await updateTransactionInDB(transaction.id, cleanData);
+        updateTransaction(transaction.id, cleanData);
       } else {
         // Add new transaction - clean undefined values
         const cleanData = Object.fromEntries(
@@ -276,9 +278,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="text-sm font-medium">Tipo</label>
-          <select 
+          <select
             {...register('type')}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="transaction-type-select"
           >
             <option value="EXPENSE">Gasto</option>
             <option value="INCOME">Ingreso</option>
@@ -289,12 +292,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
 
         <div className="space-y-2">
           <label className="text-sm font-medium">Monto</label>
-          <input 
-            type="number" 
+          <input
+            type="number"
             step="0.01"
             {...register('amount')}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             placeholder="0.00"
+            data-testid="transaction-amount-input"
           />
           {errors.amount && <p className="text-xs text-red-500">{errors.amount.message}</p>}
         </div>
@@ -302,11 +306,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Descripción</label>
-        <input 
-          type="text" 
+        <input
+          type="text"
           {...register('description')}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           placeholder="Ej: Almuerzo"
+          data-testid="transaction-description-input"
         />
         {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
       </div>
@@ -315,9 +320,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         <label className="text-sm font-medium">
           {transactionType === 'INCOME' ? 'Fuente de Ingreso' : 'Categoría'}
         </label>
-        <select 
+        <select
           {...register('categoryId')}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid="transaction-category-select"
         >
           <option value="">{transactionType === 'INCOME' ? 'Seleccionar fuente' : 'Sin categoría'}</option>
           {transactionType === 'INCOME' 
@@ -336,9 +342,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Desde (Origen)</label>
-              <select 
+              <select
                 {...register('fromAccountId')}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="transaction-from-account-select"
               >
                 <option value="">Seleccionar cuenta</option>
                 {accounts.map(acc => (
@@ -350,9 +357,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Hacia (Destino)</label>
-              <select 
+              <select
                 {...register('accountId')}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="transaction-to-account-select"
               >
                 <option value="">Seleccionar cuenta</option>
                 {accounts.map(acc => (
@@ -371,12 +379,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Tasa de Conversión</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="0.0001"
                   {...register('exchangeRate')}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   placeholder="Ej: 3.75"
+                  data-testid="transaction-exchange-rate-input"
                 />
                 {errors.exchangeRate && <p className="text-xs text-red-500">{errors.exchangeRate.message}</p>}
                 {amount && exchangeRate && (
@@ -391,9 +400,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       ) : (
         <div className="space-y-2">
           <label className="text-sm font-medium">Cuenta</label>
-          <select 
+          <select
             {...register('accountId')}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="transaction-account-select"
           >
             <option value="">Seleccionar cuenta</option>
             {accounts.map(acc => (
@@ -406,16 +416,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Fecha</label>
-        <input 
-          type="date" 
+        <input
+          type="date"
           {...register('date')}
           max={new Date().toISOString().split('T')[0]}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid="transaction-date-input"
         />
         {errors.date && <p className="text-xs text-red-500">{errors.date.message as string}</p>}
       </div>
 
-      <Button type="submit" className="w-full" disabled={isSubmitting || hasError}>
+      <Button type="submit" className="w-full" disabled={isSubmitting || hasError} data-testid="save-transaction-button">
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {transaction ? 'Actualizar Transacción' : transactionType === 'TRANSFER' ? 'Transferir' : 'Guardar Transacción'}
       </Button>
