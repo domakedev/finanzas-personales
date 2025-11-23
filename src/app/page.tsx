@@ -83,27 +83,27 @@ export default function LandingPage() {
           <div className="container relative mx-auto px-4 py-16 md:py-24 flex flex-col items-center text-center">
             {/* Floating badges */}
             <div className="flex flex-wrap gap-3 mb-6 justify-center">
-              <div className={`glass-effect px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 transition-all duration-700 ${isVisible ? 'animate-fade-in' : 'opacity-0'}`} style={{ animationDelay: '0.2s' }}>
+              <div className={`glass-effect px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 transition-all duration-700 ${isVisible ? 'animate-fade-in' : 'opacity-0'}`}>
                 <Sparkles className="h-4 w-4 text-highlight" />
                 <span>100% Gratis</span>
               </div>
-              <div className={`glass-effect px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 transition-all duration-700 ${isVisible ? 'animate-fade-in' : 'opacity-0'}`} style={{ animationDelay: '0.4s' }}>
+              <div className={`glass-effect px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 transition-all duration-700 ${isVisible ? 'animate-fade-in' : 'opacity-0'}`}>
                 <Lock className="h-4 w-4 text-highlight" />
                 <span>Seguro y Privado</span>
               </div>
             </div>
 
-            <h1 className={`text-4xl md:text-6xl font-bold mb-6 transition-all duration-700 ${isVisible ? 'animate-slide-up' : 'opacity-0'}`} style={{ animationDelay: '0.3s' }}>
+            <h1 className={`text-4xl md:text-6xl font-bold mb-6 transition-all duration-700 ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}>
               Toma el control de tu dinero <br className="hidden md:block" />
               <span className="text-highlight">al estilo peruano</span>
             </h1>
-            
-            <p className={`text-lg md:text-xl mb-8 max-w-2xl text-blue-100 transition-all duration-700 ${isVisible ? 'animate-slide-up' : 'opacity-0'}`} style={{ animationDelay: '0.5s' }}>
-              Gestiona tus cuentas de BCP, BBVA, Interbank, Yape, Plin, Efectivo en un solo lugar. 
+
+            <p className={`text-lg md:text-xl mb-8 max-w-2xl text-blue-100 transition-all duration-700 ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}>
+              Gestiona tus cuentas de BCP, BBVA, Interbank, Yape, Plin, Efectivo en un solo lugar.
               Visualiza tus metas de ahorro y elimina tus deudas.
             </p>
-            
-            <div className={`flex flex-col sm:flex-row gap-4 transition-all duration-700 ${isVisible ? 'animate-slide-up' : 'opacity-0'}`} style={{ animationDelay: '0.7s' }}>
+
+            <div className={`flex flex-col sm:flex-row gap-4 transition-all duration-700 ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}>
               <Link href={user ? "/dashboard" : "/login"}>
                 <Button size="lg" className="bg-highlight text-primary hover:bg-highlight/90 hover:scale-105 transition-transform duration-300 animate-pulse-glow w-full sm:w-auto">
                   Empezar Gratis <ArrowRight className="ml-2 h-5 w-5" />
