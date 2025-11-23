@@ -16,6 +16,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const metadata: Metadata = {
+  title: 'Finanzas Personales Perú - Gestiona tu dinero inteligentemente',
+  description: 'La mejor app para controlar tus gastos, ahorros y deudas en Perú. Compatible con Yape, Plin y todos los bancos.',
+  keywords: 'finanzas personales, peru, ahorro, gastos, deudas, yape, plin, bcp, interbank',
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

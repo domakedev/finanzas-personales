@@ -1,15 +1,21 @@
+"use client"
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { ArrowRight, CheckCircle, Shield, Smartphone } from 'lucide-react';
-import { Metadata } from 'next';
-
-export const metadata: Metadata = {
-  title: 'Finanzas Personales Perú - Gestiona tu dinero inteligentemente',
-  description: 'La mejor app para controlar tus gastos, ahorros y deudas en Perú. Compatible con Yape, Plin y todos los bancos.',
-  keywords: 'finanzas personales, peru, ahorro, gastos, deudas, yape, plin, bcp, interbank',
-};
+import { useAuth } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function LandingPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, loading, router]);
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
@@ -24,7 +30,7 @@ export default function LandingPage() {
             Visualiza tus metas de ahorro y elimina tus deudas.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <Link href="/login">
+            <Link href={user ? "/dashboard" : "/login"}>
               <Button size="lg" className="bg-highlight text-primary hover:bg-highlight/90 w-full sm:w-auto">
                 Empezar Gratis <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -78,7 +84,7 @@ export default function LandingPage() {
       <section className="py-16 bg-secondary text-white text-center">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold mb-6">¿Listo para ordenar tus finanzas?</h2>
-          <Link href="/login">
+          <Link href={user ? "/dashboard" : "/login"}>
             <Button size="lg" className="bg-highlight text-primary hover:bg-highlight/90">
               Crear Cuenta Gratis
             </Button>

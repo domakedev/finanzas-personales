@@ -2,29 +2,44 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Wallet, 
-  ArrowRightLeft, 
-  CreditCard, 
-  Sprout, 
-  Sun, 
-  Moon, 
-  Menu, 
-  X 
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  LayoutDashboard,
+  Wallet,
+  ArrowRightLeft,
+  CreditCard,
+  Sprout,
+  Sun,
+  Moon,
+  Menu,
+  X,
+  LogOut
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const pathname = usePathname();
+   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+   const [isDarkMode, setIsDarkMode] = useState(false);
+   const pathname = usePathname();
+   const router = useRouter();
+   const { user } = useAuth();
+
+   const handleSignOut = async () => {
+     try {
+       await signOut(auth);
+       router.push('/');
+     } catch (error) {
+       console.error('Error signing out:', error);
+     }
+   };
 
   // Initialize theme
   useEffect(() => {
@@ -69,9 +84,9 @@ export default function Layout({ children }: LayoutProps) {
       )}
 
       {/* Sidebar */}
-      <aside 
+      <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:max-h-screen md:sticky",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -106,15 +121,25 @@ export default function Layout({ children }: LayoutProps) {
             })}
           </nav>
 
-          <div className="p-4 border-t border-border">
-            <Button 
-              variant="ghost" 
+          <div className="p-4 border-t border-border space-y-2">
+            <Button
+              variant="ghost"
               className="w-full justify-start gap-3"
               onClick={toggleTheme}
             >
               {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               <span>{isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
             </Button>
+            {user && (
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Cerrar Sesión</span>
+              </Button>
+            )}
           </div>
         </div>
       </aside>

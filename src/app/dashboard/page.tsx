@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { SummaryCard } from '@/components/dashboard/SummaryCard';
 import { SavingsTree } from '@/components/SavingsTree';
-import { Wallet, CreditCard, TrendingUp, DollarSign } from 'lucide-react';
+import { Wallet, CreditCard, TrendingUp, DollarSign, LogOut } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -15,21 +15,21 @@ import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
-  const [detailModal, setDetailModal] = useState<{ 
-    isOpen: boolean; 
-    type: 'balance' | 'debt' | 'income' | 'expense' | null;
-    currency?: 'PEN' | 'USD';
-  }>({ isOpen: false, type: null });
-  
-  const { 
-    accounts,
-    transactions,
-    debts,
-    goals
-  } = useStore();
+   const { user } = useAuth();
+   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+   const [detailModal, setDetailModal] = useState<{
+     isOpen: boolean;
+     type: 'balance' | 'debt' | 'income' | 'expense' | null;
+     currency?: 'PEN' | 'USD';
+   }>({ isOpen: false, type: null });
+
+   const {
+     accounts,
+     transactions,
+     debts,
+     goals
+   } = useStore();
 
   // Separar cuentas por moneda
   const accountsPEN = accounts.filter(a => a.currency === 'PEN');
