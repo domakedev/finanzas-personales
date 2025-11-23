@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { AccountForm } from '@/components/forms/AccountForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
+import Image from 'next/image';
 import { useStore } from '@/lib/store';
 import { deleteAccount } from '@/lib/db';
 import { Plus, Wallet, Banknote, CreditCard, Trash2, Pencil } from 'lucide-react';
@@ -33,6 +34,7 @@ export default function AccountsPage() {
     account: null,
   });
   const accounts = useStore((state) => state.accounts);
+  console.log(accounts);
   const transactions = useStore((state) => state.transactions);
   const removeAccount = useStore((state) => state.removeAccount);
 
@@ -122,8 +124,15 @@ export default function AccountsPage() {
               </div>
             </CardHeader>
             <CardContent onClick={() => setHistoryModal({ isOpen: true, account })}>
-              <div className="text-2xl font-bold">
-                {account.currency === 'USD' ? '$' : 'S/'} {account.balance.toFixed(2)}
+              <div className="flex items-center space-x-2 mb-2">
+                {account.logo ? (
+                  <Image src={account.logo} alt={account.name} width={24} height={24} className="object-contain" />
+                ) : (
+                  getIcon(account.type)
+                )}
+                <div className="text-2xl font-bold">
+                  {account.currency === 'USD' ? '$' : 'S/'} {account.balance.toFixed(2)}
+                </div>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {account.type === 'BANK' ? 'Cuenta Bancaria' : 

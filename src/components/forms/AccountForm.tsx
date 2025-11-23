@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { AccountSchema } from '@/lib/schemas';
 import { Button } from '@/components/ui/Button';
 import { useStore } from '@/lib/store';
@@ -28,13 +29,15 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
 
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm({
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<z.infer<typeof AccountSchema>>({
     resolver: zodResolver(AccountSchema),
     defaultValues: {
       type: account?.type || 'BANK',
       currency: account?.currency || 'PEN',
       name: account?.name || '',
       balance: account?.balance || 0,
+      logo: account?.logo,
+      icon: account?.icon,
     }
   });
 
@@ -62,12 +65,9 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
     setIsSubmitting(true);
     setError(null);
     try {
-      // Find the selected option to get logo/icon
-      const selectedOptionData = ACCOUNT_OPTIONS.find(opt => opt.name === selectedOption);
+      // Use the data from the form directly, which includes logo/icon set by handleOptionSelect
       const accountData = {
- ...data,
-        logo: selectedOptionData && 'logo' in selectedOptionData ? selectedOptionData.logo : undefined,
-        icon: selectedOptionData && 'icon' in selectedOptionData ? selectedOptionData.icon : undefined,
+        ...data,
       };
       
       // Remove undefined fields
@@ -78,12 +78,17 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
         updateAccountInStore(account.id, accountData);
         await updateAccount(account.id, accountData);
       } else {
-        const newAccount = {
+        // Add to Firebase and get the real document ID
+        const docRef = await addAccount(user.uid, accountData);
+        
+        // Create account with the real Firebase ID
+        const accountWithRealId = {
           ...accountData,
-          id: crypto.randomUUID(),
+          id: docRef.id  // Use Firebase's generated ID
         };
-        addAccountToStore(newAccount);
-        await addAccount(user.uid, accountData);
+        
+        // Add to store with the correct ID
+        addAccountToStore(accountWithRealId);
       }
       
       reset();
@@ -139,10 +144,10 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
                 selectedOption === option.name ? 'border-primary bg-primary/5' : 'border-gray-200'
               }`}
             >
-              {option.logo ? (
+              {(option as any).logo ? (
                 <div className="w-12 h-12 relative">
                   <Image 
-                    src={option.logo} 
+                    src={(option as any).logo} 
                     alt={option.name}
                     fill
                     className="object-contain"
@@ -154,7 +159,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
                 </div>
               ) : (
                 <div className="w-12 h-12 flex items-center justify-center text-3xl">
-                  {option.icon}
+                  {(option as any).icon}
                 </div>
               )}
               <span className="text-xs font-medium text-center">{option.name}</span>
@@ -209,6 +214,10 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {account ? 'Actualizar Cuenta' : 'Guardar Cuenta'}
       </Button>
+      
+      {/* Hidden inputs to ensure logo/icon are submitted */}
+      <input type="hidden" {...register('logo')} />
+      <input type="hidden" {...register('icon')} />
     </form>
   );
 };

@@ -9,22 +9,24 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TransactionForm } from '@/components/forms/TransactionForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
-import { deleteTransaction, updateAccount } from '@/lib/db';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2 } from 'lucide-react';
+import { deleteTransactionAtomic } from '@/lib/db';
+import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLoadData } from '@/lib/useLoadData';
+import { Transaction } from '@/types';
 
 export default function TransactionsPage() {
   const { isLoading } = useLoadData();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; transactionId: string | null }>({
     isOpen: false,
     transactionId: null,
   });
   const transactions = useStore((state) => state.transactions);
   const accounts = useStore((state) => state.accounts);
-  const removeTransaction = useStore((state) => state.setTransactions);
+  const removeTransaction = useStore((state) => state.removeTransaction);
   const updateAccountInStore = useStore((state) => state.updateAccount);
 
   const handleDelete = async (transactionId: string) => {
@@ -32,37 +34,32 @@ export default function TransactionsPage() {
       const transaction = transactions.find(t => t.id === transactionId);
       if (!transaction) return;
 
+      await deleteTransactionAtomic(transactionId);
+      
       if (transaction.type === 'EXPENSE') {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
-          const newBalance = account.balance + transaction.amount;
-          updateAccountInStore(account.id, { balance: newBalance });
-          await updateAccount(account.id, { balance: newBalance });
+          updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
         }
       } else if (transaction.type === 'INCOME') {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
-          const newBalance = account.balance - transaction.amount;
-          updateAccountInStore(account.id, { balance: newBalance });
-          await updateAccount(account.id, { balance: newBalance });
+          updateAccountInStore(account.id, { balance: account.balance - transaction.amount });
         }
       } else if (transaction.type === 'TRANSFER' && transaction.fromAccountId) {
         const fromAccount = accounts.find(a => a.id === transaction.fromAccountId);
         const toAccount = accounts.find(a => a.id === transaction.accountId);
         if (fromAccount && toAccount) {
-          const newFromBalance = fromAccount.balance + transaction.amount;
-          const newToBalance = toAccount.balance - transaction.amount;
-          updateAccountInStore(fromAccount.id, { balance: newFromBalance });
-          updateAccountInStore(toAccount.id, { balance: newToBalance });
-          await updateAccount(fromAccount.id, { balance: newFromBalance });
-          await updateAccount(toAccount.id, { balance: newToBalance });
+          updateAccountInStore(fromAccount.id, { balance: fromAccount.balance + transaction.amount });
+          const amountToRevert = transaction.convertedAmount || transaction.amount;
+          updateAccountInStore(toAccount.id, { balance: toAccount.balance - amountToRevert });
         }
       }
 
-      await deleteTransaction(transactionId);
-      removeTransaction(transactions.filter(t => t.id !== transactionId));
-    } catch (error) {
+      removeTransaction(transactionId);
+    } catch (error: any) {
       console.error("Error deleting transaction:", error);
+      alert(`Error al eliminar la transacción: ${error.message || "Error desconocido"}`);
     }
   };
 
@@ -121,6 +118,31 @@ export default function TransactionsPage() {
                   return getAccountName(tx.accountId);
                 };
 
+                const getAmountDisplay = () => {
+                  const account = accounts.find(a => a.id === tx.accountId);
+                  const symbol = account?.currency === 'USD' ? '$' : 'S/';
+                  
+                  if (tx.type === 'TRANSFER' && tx.fromAccountId) {
+                      const fromAccount = accounts.find(a => a.id === tx.fromAccountId);
+                      const toAccount = accounts.find(a => a.id === tx.accountId);
+                      
+                      if (fromAccount && toAccount && fromAccount.currency !== toAccount.currency) {
+                          const fromSymbol = fromAccount.currency === 'USD' ? '$' : 'S/';
+                          const toSymbol = toAccount.currency === 'USD' ? '$' : 'S/';
+                          const converted = tx.convertedAmount || tx.amount;
+                          return (
+                            <span className="text-xs block text-right">
+                              {fromSymbol} {tx.amount.toFixed(2)} <br/>
+                              ↓ <br/>
+                              {toSymbol} {converted.toFixed(2)}
+                            </span>
+                          );
+                      }
+                  }
+                  
+                  return `${symbol} ${tx.amount.toFixed(2)}`;
+                };
+
                 return (
                   <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
                     <div className="flex items-center gap-4 flex-1">
@@ -135,12 +157,23 @@ export default function TransactionsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className={`font-bold ${
+                      <div className={`font-bold text-right ${
                         tx.type === 'TRANSFER' ? 'text-blue-600' :
                         tx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        {tx.type === 'TRANSFER' ? '↔' : tx.type === 'INCOME' ? '+' : '-'} S/ {tx.amount.toFixed(2)}
+                        <div className="flex items-center gap-1">
+                          <span>{tx.type === 'TRANSFER' ? '↔' : tx.type === 'INCOME' ? '+' : '-'}</span>
+                          {getAmountDisplay()}
+                        </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => setEditingTransaction(tx)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -159,11 +192,20 @@ export default function TransactionsPage() {
       </Card>
 
       <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Nueva Transacción"
+        isOpen={isModalOpen || !!editingTransaction}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingTransaction(null);
+        }}
+        title={editingTransaction ? "Editar Transacción" : "Nueva Transacción"}
       >
-        <TransactionForm onSuccess={() => setIsModalOpen(false)} />
+        <TransactionForm 
+          onSuccess={() => {
+            setIsModalOpen(false);
+            setEditingTransaction(null);
+          }} 
+          transaction={editingTransaction || undefined}
+        />
       </Modal>
 
       <ConfirmDialog

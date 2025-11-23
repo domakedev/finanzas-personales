@@ -5,6 +5,8 @@ export const AccountSchema = z.object({
   type: z.enum(['BANK', 'WALLET', 'CASH']),
   currency: z.enum(['PEN', 'USD']),
   balance: z.coerce.number().min(0, "El saldo no puede ser negativo"),
+  logo: z.string().optional(),
+  icon: z.string().optional(),
 });
 
 export const TransactionSchema = z.object({

@@ -17,6 +17,7 @@ interface AppState {
 
   setTransactions: (transactions: Transaction[]) => void;
   addTransaction: (transaction: Transaction) => void;
+  removeTransaction: (id: string) => void;
   
   setDebts: (debts: Debt[]) => void;
   addDebt: (debt: Debt) => void;
@@ -47,6 +48,9 @@ export const useStore = create<AppState>((set) => ({
 
   setTransactions: (transactions) => set({ transactions }),
   addTransaction: (transaction) => set((state) => ({ transactions: [transaction, ...state.transactions] })),
+  removeTransaction: (id) => set((state) => ({
+    transactions: state.transactions.filter((t) => t.id !== id)
+  })),
 
   setDebts: (debts) => set({ debts }),
   addDebt: (debt) => set((state) => ({ debts: [...state.debts, debt] })),

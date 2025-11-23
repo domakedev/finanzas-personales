@@ -43,12 +43,17 @@ export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
         updateDebtInStore(debt.id, data);
         await updateDebt(debt.id, data);
       } else {
-        const newDebt = {
+        // Add to Firebase and get the real document ID
+        const docRef = await addDebt(user.uid, data);
+        
+        // Create debt with the real Firebase ID
+        const debtWithRealId = {
           ...data,
-          id: crypto.randomUUID(),
+          id: docRef.id  // Use Firebase's generated ID
         };
-        addDebtToStore(newDebt);
-        await addDebt(user.uid, data);
+        
+        // Add to store with the correct ID
+        addDebtToStore(debtWithRealId);
       }
       
       reset();

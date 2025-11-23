@@ -39,12 +39,17 @@ export const GoalForm: React.FC<GoalFormProps> = ({ onSuccess, goal }) => {
         updateGoalInStore(goal.id, data);
         await updateGoal(goal.id, data);
       } else {
-        const newGoal = {
+        // Add to Firebase and get the real document ID
+        const docRef = await addGoal(user.uid, data);
+        
+        // Create goal with the real Firebase ID
+        const goalWithRealId = {
           ...data,
-          id: crypto.randomUUID(),
+          id: docRef.id  // Use Firebase's generated ID
         };
-        addGoalToStore(newGoal);
-        await addGoal(user.uid, data);
+        
+        // Add to store with the correct ID
+        addGoalToStore(goalWithRealId);
       }
       
       reset();
