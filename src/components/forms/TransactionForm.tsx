@@ -134,13 +134,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       const debt = debts.find(d => d.id === data.debtId);
       const account = accounts.find(a => a.id === data.accountId);
 
-      if (!debt) return "La deuda seleccionada no existe";
       if (!account) return "La cuenta seleccionada no existe";
 
-      const remainingDebt = debt.totalAmount - debt.paidAmount;
-      if (remainingDebt <= 0) return "Esta deuda ya está completamente pagada";
-      if (data.amount > remainingDebt) {
-        return `El monto excede la deuda restante. Máximo: ${debt.currency === 'USD' ? '$' : 'S/'} ${remainingDebt.toFixed(2)}`;
+      if (debt) {
+        const remainingDebt = debt.totalAmount - debt.paidAmount;
+        if (remainingDebt <= 0) return "Esta deuda ya está completamente pagada";
+        if (data.amount > remainingDebt) {
+          return `El monto excede la deuda restante. Máximo: ${debt.currency === 'USD' ? '$' : 'S/'} ${remainingDebt.toFixed(2)}`;
+        }
+      } else {
+        // Debt doesn't exist, but allow the transaction (it will be orphaned)
+        // Could show a warning, but for now just allow
       }
 
       if (account.balance < data.amount) {
@@ -155,13 +159,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       const goal = goals.find(g => g.id === data.goalId);
       const account = accounts.find(a => a.id === data.accountId);
 
-      if (!goal) return "La meta seleccionada no existe";
       if (!account) return "La cuenta seleccionada no existe";
 
-      const remainingGoal = goal.targetAmount - goal.currentAmount;
-      if (remainingGoal <= 0) return "Esta meta ya está completamente alcanzada";
-      if (data.amount > remainingGoal) {
-        return `El monto excede la meta restante. Máximo: ${goal.currency === 'USD' ? '$' : 'S/'} ${remainingGoal.toFixed(2)}`;
+      if (goal) {
+        const remainingGoal = goal.targetAmount - goal.currentAmount;
+        if (remainingGoal <= 0) return "Esta meta ya está completamente alcanzada";
+        if (data.amount > remainingGoal) {
+          return `El monto excede la meta restante. Máximo: ${goal.currency === 'USD' ? '$' : 'S/'} ${remainingGoal.toFixed(2)}`;
+        }
+      } else {
+        // Goal doesn't exist, but allow the transaction (it will be orphaned)
+        // Could show a warning, but for now just allow
       }
 
       if (account.balance < data.amount) {
@@ -290,19 +298,20 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         const debt = debts.find(d => d.id === data.debtId);
         if (debt) {
           let newPaidAmount = debt.paidAmount;
-          
+
           // If editing, revert the old payment first
           if (transaction && transaction.type === 'PAY_DEBT' && transaction.debtId === data.debtId) {
             newPaidAmount -= transaction.amount;
           }
-          
+
           // Apply the new payment
           newPaidAmount += data.amount;
-          
+
           // Update both store and DB
           updateDebt(data.debtId, { paidAmount: newPaidAmount });
           await updateDebtInDB(data.debtId, { paidAmount: newPaidAmount });
         }
+        // If debt doesn't exist, don't update paidAmount (transaction becomes orphaned)
       } else if (transaction && transaction.type === 'PAY_DEBT' && transaction.debtId) {
         // If editing and changing away from PAY_DEBT, revert the debt payment
         const debt = debts.find(d => d.id === transaction.debtId);
@@ -311,6 +320,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           updateDebt(transaction.debtId, { paidAmount: newPaidAmount });
           await updateDebtInDB(transaction.debtId, { paidAmount: newPaidAmount });
         }
+        // If debt doesn't exist, can't revert (but that's ok, it was already orphaned)
       }
 
       // 5. Update Goal if this is a goal saving
@@ -331,6 +341,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           updateGoal(data.goalId, { currentAmount: newCurrentAmount });
           await updateGoalInDB(data.goalId, { currentAmount: newCurrentAmount });
         }
+        // If goal doesn't exist, don't update currentAmount (transaction becomes orphaned)
       } else if (transaction && transaction.type === 'SAVE_FOR_GOAL' && transaction.goalId) {
         // If editing and changing away from SAVE_FOR_GOAL, revert the goal saving
         const goal = goals.find(g => g.id === transaction.goalId);
@@ -339,6 +350,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           updateGoal(transaction.goalId, { currentAmount: newCurrentAmount });
           await updateGoalInDB(transaction.goalId, { currentAmount: newCurrentAmount });
         }
+        // If goal doesn't exist, can't revert (but that's ok, it was already orphaned)
       }
 
       // 5. Save Transaction

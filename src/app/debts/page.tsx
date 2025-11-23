@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DebtForm } from '@/components/forms/DebtForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
-import { deleteDebt } from '@/lib/db';
+import { deleteDebt, getTransactions } from '@/lib/db';
 import { Plus, AlertCircle, Trash2, Pencil, Loader2 } from 'lucide-react';
 import { Debt } from '@/types';
 
@@ -26,14 +26,17 @@ export default function DebtsPage() {
   });
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const debts = useStore((state) => state.debts);
+  const transactions = useStore((state) => state.transactions);
   const setDebts = useStore((state) => state.setDebts);
+  const removeTransaction = useStore((state) => state.removeTransaction);
 
   const handleDelete = async (debtId: string) => {
     try {
       await deleteDebt(debtId);
       setDebts(debts.filter(d => d.id !== debtId));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting debt:", error);
+      alert(`Error al eliminar la deuda: ${error.message || "Error desconocido"}`);
     }
   };
 

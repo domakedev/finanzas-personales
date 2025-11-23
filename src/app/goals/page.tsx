@@ -27,14 +27,19 @@ export default function GoalsPage() {
   });
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const goals = useStore((state) => state.goals);
+  const transactions = useStore((state) => state.transactions);
+  const accounts = useStore((state) => state.accounts);
   const setGoals = useStore((state) => state.setGoals);
+  const updateAccount = useStore((state) => state.updateAccount);
+  const removeTransaction = useStore((state) => state.removeTransaction);
 
   const handleDelete = async (goalId: string) => {
     try {
       await deleteGoal(goalId);
       setGoals(goals.filter(g => g.id !== goalId));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting goal:", error);
+      alert(`Error al eliminar la meta: ${error.message || "Error desconocido"}`);
     }
   };
 

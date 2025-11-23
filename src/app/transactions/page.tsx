@@ -10,6 +10,7 @@ import { TransactionForm } from '@/components/forms/TransactionForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { deleteTransactionAtomic } from '@/lib/db';
+import { useAuth } from '@/lib/auth';
 import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, Sprout, HandCoins, ArrowRightLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
@@ -45,6 +46,8 @@ export default function TransactionsPage() {
     transaction: null,
   });
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
+  const { user: authUser } = useAuth();
+  const user = useStore((state) => state.user) || authUser;
   const transactions = useStore((state) => state.transactions);
   const accounts = useStore((state) => state.accounts);
   const categories = useStore((state) => state.categories);
@@ -56,57 +59,56 @@ export default function TransactionsPage() {
   const updateGoalInStore = useStore((state) => state.updateGoal);
 
   const handleDelete = async (transactionId: string) => {
-    try {
-      const transaction = transactions.find(t => t.id === transactionId);
-      if (!transaction) return;
+    const transaction = transactions.find(t => t.id === transactionId);
+    if (!transaction) return;
 
+    try {
       await deleteTransactionAtomic(transactionId);
-      
-      if (transaction.type === 'EXPENSE') {
+
+      // Update local store for accounts, debts/goals
+      if (transaction.type === 'EXPENSE' && transaction.accountId) {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
           updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
         }
-      } else if (transaction.type === 'INCOME') {
+      } else if (transaction.type === 'INCOME' && transaction.accountId) {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
           updateAccountInStore(account.id, { balance: account.balance - transaction.amount });
         }
-      } else if (transaction.type === 'TRANSFER' && transaction.fromAccountId) {
-        const fromAccount = accounts.find(a => a.id === transaction.fromAccountId);
-        const toAccount = accounts.find(a => a.id === transaction.accountId);
-        if (fromAccount && toAccount) {
-          updateAccountInStore(fromAccount.id, { balance: fromAccount.balance + transaction.amount });
-          const amountToRevert = transaction.convertedAmount || transaction.amount;
-          updateAccountInStore(toAccount.id, { balance: toAccount.balance - amountToRevert });
+      } else if (transaction.type === 'TRANSFER') {
+        if (transaction.fromAccountId) {
+          const fromAccount = accounts.find(a => a.id === transaction.fromAccountId);
+          if (fromAccount) {
+            updateAccountInStore(fromAccount.id, { balance: fromAccount.balance + transaction.amount });
+          }
         }
-      } else if (transaction.type === 'PAY_DEBT') {
-        // Revert account balance: add back the amount
+        if (transaction.accountId) {
+          const toAccount = accounts.find(a => a.id === transaction.accountId);
+          if (toAccount) {
+            const amountToRevert = transaction.convertedAmount || transaction.amount;
+            updateAccountInStore(toAccount.id, { balance: toAccount.balance - amountToRevert });
+          }
+        }
+      } else if (transaction.type === 'PAY_DEBT' && transaction.accountId) {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
           updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
         }
-        // Revert debt paidAmount: subtract the amount
-        if (transaction.debtId) {
-          const debt = debts.find(d => d.id === transaction.debtId);
-          if (debt) {
-            const newPaidAmount = debt.paidAmount - transaction.amount;
-            updateDebtInStore(debt.id, { paidAmount: newPaidAmount });
-          }
+        const debt = debts.find(d => d.id === transaction.debtId);
+        if (debt) {
+          const newPaidAmount = debt.paidAmount - transaction.amount;
+          updateDebtInStore(debt.id, { paidAmount: newPaidAmount });
         }
-      } else if (transaction.type === 'SAVE_FOR_GOAL') {
-        // Revert account balance: add back the amount
+      } else if (transaction.type === 'SAVE_FOR_GOAL' && transaction.accountId) {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
           updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
         }
-        // Revert goal currentAmount: subtract the amount
-        if (transaction.goalId) {
-          const goal = goals.find(g => g.id === transaction.goalId);
-          if (goal) {
-            const newCurrentAmount = goal.currentAmount - transaction.amount;
-            updateGoalInStore(goal.id, { currentAmount: newCurrentAmount });
-          }
+        const goal = goals.find(g => g.id === transaction.goalId);
+        if (goal) {
+          const newCurrentAmount = goal.currentAmount - transaction.amount;
+          updateGoalInStore(goal.id, { currentAmount: newCurrentAmount });
         }
       }
 
@@ -337,7 +339,7 @@ export default function TransactionsPage() {
           setDeleteConfirm({ isOpen: false, transactionId: null });
         }}
         title="Eliminar Transacción"
-        message="⚠️ Cuidado: Esta acción debería ser automática y no deberías editarla manualmente. Los balances de las cuentas podrían desincronizarse. ¿Estás seguro?"
+        message="⚠️ Cuidado: Esta acción debería ser automática y no deberías editarla manualmente, el dinero regresara a la cuenta de origen, y si hay cuenta de destino también se vera afectada. Los balances de las cuentas podrían desincronizarse. ¿Estás seguro?"
         confirmText="Eliminar"
         isDestructive={true}
       />

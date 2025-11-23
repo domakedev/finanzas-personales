@@ -81,7 +81,6 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
     if (!transactionDoc.exists()) {
       throw new Error("Transaction does not exist!");
     }
-
     const txData = transactionDoc.data();
     const amount = Number(txData.amount) || 0;
     const type = txData.type;
@@ -145,14 +144,20 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
         }
       }
 
-      // Revert debt paidAmount (subtract the payment)
+      // Revert debt paidAmount (subtract the payment) - only if debt exists
       if (debtId) {
-        const debtRef = doc(db, 'debts', debtId);
-        const debtDoc = await getDoc(debtRef);
-        if (debtDoc.exists()) {
-          const currentPaidAmount = Number(debtDoc.data().paidAmount) || 0;
-          const newPaidAmount = currentPaidAmount - amount;
-          updatePromises.push(updateDoc(debtRef, { paidAmount: Math.max(0, newPaidAmount) }));
+        try {
+          const debtRef = doc(db, 'debts', debtId);
+          //exist in firebase?
+          const debtDoc = await getDoc(debtRef);
+          if (debtDoc.exists()) {
+            const currentPaidAmount = Number(debtDoc.data().paidAmount) || 0;
+            const newPaidAmount = currentPaidAmount - amount;
+            updatePromises.push(updateDoc(debtRef, { paidAmount: Math.max(0, newPaidAmount) }));
+          }
+        } catch (error) {
+          console.error("Error preparing debt update:", error);
+          // Continue without updating debt
         }
       }
     } else if (type === 'SAVE_FOR_GOAL') {
@@ -161,20 +166,27 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
         const accountRef = doc(db, 'accounts', accountId);
         const accountDoc = await getDoc(accountRef);
         if (accountDoc.exists()) {
-          const currentBalance = Number(accountDoc.data().balance) || 0;
+          const accountData = accountDoc.data();
+          const currentBalance = Number(accountData.balance) || 0;
           const newBalance = currentBalance + amount;
           updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
+        } else {
         }
       }
 
-      // Revert goal currentAmount (subtract the saving)
+      // Revert goal currentAmount (subtract the saving) - only if goal exists
       if (goalId) {
-        const goalRef = doc(db, 'goals', goalId);
-        const goalDoc = await getDoc(goalRef);
-        if (goalDoc.exists()) {
-          const currentCurrentAmount = Number(goalDoc.data().currentAmount) || 0;
-          const newCurrentAmount = currentCurrentAmount - amount;
-          updatePromises.push(updateDoc(goalRef, { currentAmount: Math.max(0, newCurrentAmount) }));
+        try {
+          const goalRef = doc(db, 'goals', goalId);
+          const goalDoc = await getDoc(goalRef);
+          if (goalDoc.exists()) {
+            const currentCurrentAmount = Number(goalDoc.data().currentAmount) || 0;
+            const newCurrentAmount = currentCurrentAmount - amount;
+            updatePromises.push(updateDoc(goalRef, { currentAmount: Math.max(0, newCurrentAmount) }));
+          }
+        } catch (error) {
+          console.error("Error preparing goal update:", error);
+          // Continue without updating goal
         }
       }
     }
