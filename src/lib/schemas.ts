@@ -13,6 +13,7 @@ export const TransactionSchema = z.object({
   amount: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
   description: z.string().min(1, "La descripción es obligatoria"),
   date: z.coerce.date().max(new Date(), "No puedes crear transacciones con fechas futuras"),
+  createdAt: z.coerce.date().optional(),
   type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER', 'PAY_DEBT', 'SAVE_FOR_GOAL']),
   categoryId: z.string().optional(),
   accountId: z.string().min(1, "Selecciona una cuenta"),

@@ -1,16 +1,16 @@
 import { db, auth } from './firebase';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  where, 
-  updateDoc, 
-  doc, 
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  doc,
   deleteDoc,
   runTransaction,
   getDoc,
-  Timestamp 
+  Timestamp
 } from 'firebase/firestore';
 import { Account, Transaction, Debt, Goal, Budget, Category } from '@/types';
 
@@ -40,17 +40,24 @@ export const deleteAccount = async (accountId: string) => {
 export const getTransactions = async (userId: string): Promise<Transaction[]> => {
   const q = query(collection(db, 'transactions'), where('userId', '==', userId));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    ...convertDoc<Transaction>(doc),
-    date: (doc.data().date as Timestamp).toDate()
-  }));
+  const transactions = snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      ...convertDoc<Transaction>(doc),
+      date: (data.date as Timestamp).toDate(),
+      createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate() : (data.date as Timestamp).toDate()
+    };
+  });
+  // Sort by createdAt descending
+  return transactions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 };
 
 export const addTransaction = async (userId: string, transaction: Omit<Transaction, 'id'>) => {
-  return addDoc(collection(db, 'transactions'), { 
-    ...transaction, 
+  return addDoc(collection(db, 'transactions'), {
+    ...transaction,
     userId,
-    date: Timestamp.fromDate(transaction.date) 
+    date: Timestamp.fromDate(transaction.date),
+    createdAt: Timestamp.now()
   });
 };
 

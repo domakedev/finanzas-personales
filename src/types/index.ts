@@ -13,6 +13,7 @@ export interface Transaction {
   amount: number;
   description: string;
   date: Date;
+  createdAt: Date;
   type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'PAY_DEBT' | 'SAVE_FOR_GOAL';
   categoryId?: string;
   accountId: string;

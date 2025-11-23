@@ -10,7 +10,7 @@ import { TransactionForm } from '@/components/forms/TransactionForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { deleteTransactionAtomic } from '@/lib/db';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, PiggyBank, BanknoteArrowDown } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, Sprout, HandCoins, ArrowRightLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
@@ -18,20 +18,20 @@ import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
 export default function TransactionsPage() {
   // Colores para diferentes tipos de transacción
   const TRANSACTION_COLORS = {
-    INCOME: 'bg-green-50 border-green-200',
-    EXPENSE: 'bg-red-50 border-red-200',
-    TRANSFER: 'bg-blue-50 border-blue-200',
-    PAY_DEBT: 'bg-purple-50 border-purple-200',
-    SAVE_FOR_GOAL: 'bg-blue-50 border-blue-200',
+    INCOME: 'border-green-200 dark:border-green-700',
+    EXPENSE: 'border-red-200 dark:border-red-700',
+    TRANSFER: 'border-blue-200 dark:border-blue-700',
+    PAY_DEBT: 'border-purple-200 dark:border-purple-700',
+    SAVE_FOR_GOAL: 'border-amber-200 dark:border-amber-700',
   };
 
   // Colores para las etiquetas de tipo (más oscuros)
   const TYPE_LABEL_COLORS = {
-    INCOME: 'bg-green-600 text-white',
-    EXPENSE: 'bg-red-600 text-white',
-    TRANSFER: 'bg-blue-600 text-white',
-    PAY_DEBT: 'bg-purple-600 text-white',
-    SAVE_FOR_GOAL: 'bg-blue-600 text-white',
+    INCOME: 'bg-green-600 dark:bg-green-500 text-white',
+    EXPENSE: 'bg-red-600 dark:bg-red-500 text-white',
+    TRANSFER: 'bg-blue-600 dark:bg-blue-500 text-white',
+    PAY_DEBT: 'bg-purple-600 dark:bg-purple-500 text-white',
+    SAVE_FOR_GOAL: 'bg-green-800 dark:bg-green-600 text-white',
   };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -164,23 +164,23 @@ export default function TransactionsPage() {
               transactions.map((tx) => {
                 const getTransactionIcon = () => {
                   if (tx.type === 'TRANSFER') {
-                    return <ArrowDownLeft className="h-5 w-5 rotate-90" />;
+                    return <ArrowRightLeft className="h-5 w-5" />;
                   }
                   if (tx.type === 'PAY_DEBT') {
-                    return <BanknoteArrowDown className="h-5 w-5" />;
+                    return <HandCoins className="h-5 w-5" />;
                   }
                   if (tx.type === 'SAVE_FOR_GOAL') {
-                    return <PiggyBank className="h-5 w-5" />;
+                    return <Sprout className="h-5 w-5" />;
                   }
                   return tx.type === 'INCOME' ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />;
                 };
 
                 const getTransactionColor = () => {
-                  if (tx.type === 'TRANSFER') return 'bg-blue-200/50 text-blue-700';
-                  if (tx.type === 'PAY_DEBT') return 'bg-purple-200/50 text-purple-700';
-                  if (tx.type === 'SAVE_FOR_GOAL') return 'bg-blue-200/50 text-blue-700';
-                  if (tx.type === 'INCOME') return 'bg-green-200/50 text-green-700';
-                  return 'bg-red-200/50 text-red-700';
+                  if (tx.type === 'TRANSFER') return 'bg-blue-200/50 dark:bg-blue-700/50 text-blue-700 dark:text-blue-300';
+                  if (tx.type === 'PAY_DEBT') return 'bg-purple-200/50 dark:bg-purple-700/50 text-purple-700 dark:text-purple-300';
+                  if (tx.type === 'SAVE_FOR_GOAL') return 'bg-green-800/50 dark:bg-green-600/50 text-green-900 dark:text-green-200';
+                  if (tx.type === 'INCOME') return 'bg-green-200/50 dark:bg-green-700/50 text-green-700 dark:text-green-300';
+                  return 'bg-red-200/50 dark:bg-red-700/50 text-red-700 dark:text-red-300';
                 };
 
                 const getAccountInfo = () => {
@@ -267,10 +267,10 @@ export default function TransactionsPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className={`font-bold text-right ${
-                        tx.type === 'TRANSFER' ? 'text-blue-800' :
-                        tx.type === 'PAY_DEBT' ? 'text-purple-800' :
-                        tx.type === 'SAVE_FOR_GOAL' ? 'text-blue-800' :
-                        tx.type === 'INCOME' ? 'text-green-800' : 'text-red-800'
+                        tx.type === 'TRANSFER' ? 'text-blue-800 dark:text-blue-200' :
+                        tx.type === 'PAY_DEBT' ? 'text-purple-800 dark:text-purple-200' :
+                        tx.type === 'SAVE_FOR_GOAL' ? 'text-amber-800 dark:text-amber-200' :
+                        tx.type === 'INCOME' ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'
                       }`}>
                         <div className="flex items-center gap-1">
                           <span>{tx.type === 'TRANSFER' ? '↔' : (tx.type === 'INCOME' || tx.type === 'PAY_DEBT' || tx.type === 'SAVE_FOR_GOAL') ? '+' : '-'}</span>
@@ -280,7 +280,7 @@ export default function TransactionsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                        className="h-8 w-8 text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900"
                         onClick={() => setEditTransactionConfirm({ isOpen: true, transaction: tx })}
                         data-testid={`edit-transaction-${tx.description}`}
                       >
@@ -289,7 +289,7 @@ export default function TransactionsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        className="h-8 w-8 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900"
                         onClick={() => setDeleteConfirm({ isOpen: true, transactionId: tx.id })}
                         disabled={deletingIds.includes(tx.id)}
                         data-testid={`delete-transaction-${tx.description}`}
