@@ -62,7 +62,7 @@ export const CreditCardForm: React.FC<CreditCardFormProps> = ({ onSuccess, debt 
 
   const formatCardNumber = (digits: string) => {
     if (!digits) return '';
-    return `****-****-****-${digits}`;
+    return `****-${digits}`;
   };
 
   const onSubmit = async (data: any) => {

@@ -21,7 +21,7 @@ export default function Dashboard() {
    const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
    const [detailModal, setDetailModal] = useState<{
      isOpen: boolean;
-     type: 'balance' | 'debt' | 'credit_card_debt' | 'income' | 'expense' | null;
+     type: 'balance' | 'debt' | 'credit_card_debt_pen' | 'credit_card_debt_usd' | 'income' | 'expense' | null;
      currency?: 'PEN' | 'USD';
    }>({ isOpen: false, type: null });
 
@@ -40,7 +40,12 @@ export default function Dashboard() {
   const totalBalanceUSD = accountsUSD.reduce((sum, acc) => sum + acc.balance, 0);
   
   const totalDebt = debts.filter(debt => !debt.isCreditCard).reduce((sum, debt) => sum + (debt.totalAmount - (debt.paidAmount || 0)), 0);
-  const totalCreditCardDebt = debts.filter(debt => debt.isCreditCard).reduce((sum, debt) => sum + (debt.totalAmount - (debt.paidAmount || 0)), 0);
+
+  // Separar deudas de tarjetas de crédito por moneda
+  const creditCardDebtsPEN = debts.filter(debt => debt.isCreditCard && debt.currency === 'PEN');
+  const creditCardDebtsUSD = debts.filter(debt => debt.isCreditCard && debt.currency === 'USD');
+  const totalCreditCardDebtPEN = creditCardDebtsPEN.reduce((sum, debt) => sum + (debt.totalAmount - (debt.paidAmount || 0)), 0);
+  const totalCreditCardDebtUSD = creditCardDebtsUSD.reduce((sum, debt) => sum + (debt.totalAmount - (debt.paidAmount || 0)), 0);
   
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
@@ -97,10 +102,17 @@ export default function Dashboard() {
               icon={CreditCard}
             />
           </div>
-          <div onClick={() => openDetailModal('credit_card_debt')} className="cursor-pointer">
+          <div onClick={() => openDetailModal('credit_card_debt_pen')} className="cursor-pointer">
             <SummaryCard
-              title="Tarjetas de Crédito"
-              amount={`S/ ${totalCreditCardDebt.toFixed(2)}`}
+              title="Deudas T.Cred. (S/)"
+              amount={`S/ ${totalCreditCardDebtPEN.toFixed(2)}`}
+              icon={CreditCard}
+            />
+          </div>
+          <div onClick={() => openDetailModal('credit_card_debt_usd')} className="cursor-pointer">
+            <SummaryCard
+              title="Deudas T.Cred. ($)"
+              amount={`$ ${totalCreditCardDebtUSD.toFixed(2)}`}
               icon={CreditCard}
             />
           </div>
@@ -214,7 +226,8 @@ export default function Dashboard() {
         title={
           detailModal.type === 'balance' ? `Detalle de Saldo (${detailModal.currency})` :
           detailModal.type === 'debt' ? 'Detalle de Deudas' :
-          detailModal.type === 'credit_card_debt' ? 'Detalle de Tarjetas de Crédito' :
+          detailModal.type === 'credit_card_debt_pen' ? 'Detalle de Deudas Tarjetas de Crédito (S/)' :
+          detailModal.type === 'credit_card_debt_usd' ? 'Detalle de Deudas Tarjetas de Crédito ($)' :
           detailModal.type === 'income' ? `Detalle de Ingresos (${monthNameCapitalized})` :
           detailModal.type === 'expense' ? `Detalle de Gastos (${monthNameCapitalized})` : ''
         }
@@ -272,13 +285,13 @@ export default function Dashboard() {
             </>
           )}
 
-          {detailModal.type === 'credit_card_debt' && (
+          {detailModal.type === 'credit_card_debt_pen' && (
             <>
-              {debts.filter(debt => debt.isCreditCard).length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No tienes tarjetas de crédito registradas.</p>
+              {creditCardDebtsPEN.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No tienes tarjetas de crédito en soles registradas.</p>
               ) : (
                 <>
-                  {debts.filter(debt => debt.isCreditCard).map(debt => {
+                  {creditCardDebtsPEN.map(debt => {
                     // Calcular próxima fecha de corte para mostrar
                     const getNextCutoffDate = () => {
                       if (!debt.cutoffDate) return null;
@@ -322,7 +335,7 @@ export default function Dashboard() {
                             {debt.name}
                             {debt.lastFourDigits && (
                               <span className="text-xs text-muted-foreground">
-                                ****-****-****-{debt.lastFourDigits}
+                                ****-{debt.lastFourDigits}
                               </span>
                             )}
                           </p>
@@ -347,7 +360,90 @@ export default function Dashboard() {
                   <div className="pt-3 border-t">
                     <div className="flex justify-between items-center">
                       <p className="font-semibold">Total Pendiente:</p>
-                      <p className="text-xl font-bold text-red-600">S/ {totalCreditCardDebt.toFixed(2)}</p>
+                      <p className="text-xl font-bold text-red-600">S/ {totalCreditCardDebtPEN.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {detailModal.type === 'credit_card_debt_usd' && (
+            <>
+              {creditCardDebtsUSD.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No tienes tarjetas de crédito en dólares registradas.</p>
+              ) : (
+                <>
+                  {creditCardDebtsUSD.map(debt => {
+                    // Calcular próxima fecha de corte para mostrar
+                    const getNextCutoffDate = () => {
+                      if (!debt.cutoffDate) return null;
+                      const today = new Date();
+                      const cutoffDay = debt.cutoffDate;
+                      const currentYear = today.getFullYear();
+                      const currentMonth = today.getMonth();
+
+                      let cutoffDate = new Date(currentYear, currentMonth, cutoffDay);
+                      if (cutoffDate < today) {
+                        cutoffDate = new Date(currentYear, currentMonth + 1, cutoffDay);
+                      }
+                      return cutoffDate;
+                    };
+
+                    const nextCutoffDate = getNextCutoffDate();
+
+                    // Calcular próxima fecha de pago
+                    const getNextPaymentDate = () => {
+                      if (!debt.paymentDate) return null;
+                      const today = new Date();
+                      const paymentDay = debt.paymentDate;
+                      const currentYear = today.getFullYear();
+                      const currentMonth = today.getMonth();
+
+                      let paymentDate = new Date(currentYear, currentMonth, paymentDay);
+                      if (paymentDate < today) {
+                        paymentDate = new Date(currentYear, currentMonth + 1, paymentDay);
+                      }
+                      return paymentDate;
+                    };
+
+                    const nextPaymentDate = getNextPaymentDate();
+
+                    return (
+                      <div key={debt.id} className="p-3 border rounded-lg">
+                        <div className="flex justify-between items-center mb-2">
+                          <p className="font-medium flex items-center gap-2">
+                            {debt.logo && <img src={debt.logo} alt={debt.name} className="w-6 h-6" />}
+                            {debt.icon && <span>{debt.icon}</span>}
+                            {debt.name}
+                            {debt.lastFourDigits && (
+                              <span className="text-xs text-muted-foreground">
+                                ****-{debt.lastFourDigits}
+                              </span>
+                            )}
+                          </p>
+                          <p className="font-bold text-red-600">$ {(debt.totalAmount - (debt.paidAmount ?? 0)).toFixed(2)}</p>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Pagado: $ {(debt.paidAmount ?? 0).toFixed(2)} de $ {debt.totalAmount.toFixed(2)}
+                        </div>
+                        {debt.cutoffDate && nextCutoffDate && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Próxima corte: {nextCutoffDate.toLocaleDateString('es-PE')}
+                          </div>
+                        )}
+                        {debt.paymentDate && nextPaymentDate && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Próximo pago: {nextPaymentDate.toLocaleDateString('es-PE')}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <div className="pt-3 border-t">
+                    <div className="flex justify-between items-center">
+                      <p className="font-semibold">Total Pendiente:</p>
+                      <p className="text-xl font-bold text-red-600">$ {totalCreditCardDebtUSD.toFixed(2)}</p>
                     </div>
                   </div>
                 </>

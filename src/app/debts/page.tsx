@@ -188,7 +188,7 @@ export default function DebtsPage() {
                       ></div>
                     </div>
                     <p className="text-xs text-right mt-1 text-muted-foreground">
-                      {usagePercentage.toFixed(0)}% Usado
+                      {usagePercentage.toFixed(0)}%
                     </p>
 
                     {debt.cutoffDate && (
