@@ -48,12 +48,12 @@ export default function DebtsPage() {
 
   return (
     <Layout>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">Deudas y Créditos</h1>
           <p className="text-muted-foreground">Controla tus pagos pendientes</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button onClick={() => setIsModalOpen(true)} data-testid="new-debt-button">
             <Plus className="mr-2 h-4 w-4" /> Nueva Deuda
           </Button>
