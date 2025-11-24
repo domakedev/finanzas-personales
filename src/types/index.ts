@@ -14,7 +14,7 @@ export interface Transaction {
   description: string;
   date: Date;
   createdAt: Date;
-  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'PAY_DEBT' | 'SAVE_FOR_GOAL' | 'PAY_CREDIT_CARD';
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'PAY_DEBT' | 'SAVE_FOR_GOAL' | 'PAY_CREDIT_CARD' | 'RECEIVE_DEBT_PAYMENT';
   categoryId?: string;
   accountId: string;
   fromAccountId?: string; // For transfers
@@ -33,6 +33,7 @@ export interface Debt {
   paidAmount?: number; // Opcional para tarjetas de crédito
   currency: 'PEN' | 'USD';
   dueDate?: Date;
+  isLent?: boolean; // True if the user lent money (Me deben)
   // Campos para tarjetas de crédito
   isCreditCard?: boolean;
   creditCardType?: 'BANK' | 'WALLET';

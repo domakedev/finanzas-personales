@@ -34,6 +34,7 @@ export default function AccountsPage() {
   const accounts = useStore((state) => state.accounts);
   console.log(accounts);
   const transactions = useStore((state) => state.transactions);
+  const debts = useStore((state) => state.debts);
   const removeAccount = useStore((state) => state.removeAccount);
 
   const handleDelete = async (accountId: string) => {
@@ -282,7 +283,12 @@ export default function AccountsPage() {
                                       {new Date(tx.date).toLocaleDateString('es-PE')} • {
                                         tx.type === 'INCOME' ? '💰 Ingreso' :
                                         tx.type === 'EXPENSE' ? '💸 Gasto' :
-                                        tx.type === 'TRANSFER' ? '🔄 Transferencia' : tx.type
+                                        tx.type === 'TRANSFER' ? '🔄 Transferencia' :
+                                        tx.type === 'PAY_DEBT' ? `💳 Pago: ${debts.find(d => d.id === tx.debtId)?.name || 'Deuda'}` :
+                                        tx.type === 'PAY_CREDIT_CARD' ? `💳 Pago TC: ${debts.find(d => d.id === tx.debtId)?.name || 'Tarjeta'}` :
+                                        tx.type === 'RECEIVE_DEBT_PAYMENT' ? `💵 Cobro: ${debts.find(d => d.id === tx.debtId)?.name || 'Préstamo'}` :
+                                        tx.type === 'SAVE_FOR_GOAL' ? '🌱 Ahorro Meta' :
+                                        tx.type
                                       }
                                     </p>
                                   </div>

@@ -89,7 +89,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
   if (accounts.length === 0) {
     return (
       <div className="text-center py-6 space-y-4">
-        <p className="text-muted-foreground">No tienes cuentas registradas para asociar a esta transacción.</p>
+        <p className="text-muted-foreground">Para registrar transacciones, primero necesitamos que agregues una cuenta bancaria o billetera digital.</p>
         <Button onClick={onRequestCreateAccount} className="w-full">
           Crear mi primera cuenta
         </Button>
@@ -103,7 +103,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       const account = accounts.find(a => a.id === data.accountId);
       if (!account) return "La cuenta seleccionada no existe";
       if (account.balance < data.amount) {
-        return `Saldo insuficiente. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}`;
+        return `¡Ups! No tienes suficiente saldo. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}. Puedes transferir fondos desde otra cuenta primero.`;
       }
     }
 
@@ -118,7 +118,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       if (!fromAccount) return "La cuenta de origen no existe";
       if (!toAccount) return "La cuenta de destino no existe";
       if (fromAccount.balance < data.amount) {
-        return `Saldo insuficiente en ${fromAccount.name}. Disponible: ${fromAccount.currency === 'USD' ? '$' : 'S/'} ${fromAccount.balance.toFixed(2)}`;
+        return `¡Ups! No tienes suficiente saldo en ${fromAccount.name}. Disponible: ${fromAccount.currency === 'USD' ? '$' : 'S/'} ${fromAccount.balance.toFixed(2)}`;
       }
       
       // Check if exchange rate is needed
@@ -148,7 +148,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       }
 
       if (account.balance < data.amount) {
-        return `Saldo insuficiente. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}`;
+        return `¡Ups! No tienes suficiente saldo. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}`;
       }
     }
 
@@ -173,7 +173,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       }
 
       if (account.balance < data.amount) {
-        return `Saldo insuficiente. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}`;
+        return `¡Ups! No tienes suficiente saldo. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}`;
       }
     }
 
@@ -198,7 +198,25 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       }
 
       if (account.balance < data.amount) {
-        return `Saldo insuficiente. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}`;
+        return `¡Ups! No tienes suficiente saldo. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}`;
+      }
+    }
+
+    // Validate RECEIVE_DEBT_PAYMENT
+    if (data.type === 'RECEIVE_DEBT_PAYMENT') {
+      if (!data.debtId) return "Debes seleccionar un préstamo";
+
+      const debt = debts.find(d => d.id === data.debtId && d.isLent);
+      const account = accounts.find(a => a.id === data.accountId);
+
+      if (!account) return "La cuenta seleccionada no existe";
+
+      if (debt) {
+        const remainingDebt = debt.totalAmount - (debt.paidAmount || 0);
+        if (remainingDebt <= 0) return "Este préstamo ya está completamente pagado";
+        if (data.amount > remainingDebt) {
+          return `El monto excede la deuda restante. Máximo: ${debt.currency === 'USD' ? '$' : 'S/'} ${remainingDebt.toFixed(2)}`;
+        }
       }
     }
 
@@ -283,6 +301,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           addChange(transaction.accountId, -amountToRevert);
         } else if (transaction.type === 'PAY_DEBT') {
           addChange(transaction.accountId, transaction.amount);
+        } else if (transaction.type === 'RECEIVE_DEBT_PAYMENT') {
+          addChange(transaction.accountId, -transaction.amount);
         } else if (transaction.type === 'SAVE_FOR_GOAL') {
           addChange(transaction.accountId, transaction.amount);
         }
@@ -299,6 +319,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         addChange(data.accountId, amountToAdd);
       } else if (data.type === 'PAY_DEBT') {
         addChange(data.accountId, -data.amount);
+      } else if (data.type === 'RECEIVE_DEBT_PAYMENT') {
+        addChange(data.accountId, data.amount);
       } else if (data.type === 'PAY_CREDIT_CARD') {
         addChange(data.accountId, -data.amount);
       } else if (data.type === 'SAVE_FOR_GOAL') {
@@ -375,6 +397,31 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
           await updateDebtInDB(transaction.debtId, { paidAmount: newPaidAmount });
         }
         // If credit card doesn't exist, can't revert (but that's ok, it was already orphaned)
+      } else if (data.type === 'RECEIVE_DEBT_PAYMENT' && data.debtId) {
+        const debt = debts.find(d => d.id === data.debtId && d.isLent);
+        if (debt) {
+          let newPaidAmount = debt.paidAmount || 0;
+
+          // If editing, revert the old payment first
+          if (transaction && transaction.type === 'RECEIVE_DEBT_PAYMENT' && transaction.debtId === data.debtId) {
+            newPaidAmount = Math.max(0, Math.round((newPaidAmount - transaction.amount) * 100) / 100);
+          }
+
+          // Apply the new payment
+          newPaidAmount = Math.round((newPaidAmount + data.amount) * 100) / 100;
+
+          // Update both store and DB
+          updateDebt(data.debtId, { paidAmount: newPaidAmount });
+          await updateDebtInDB(data.debtId, { paidAmount: newPaidAmount });
+        }
+      } else if (transaction && transaction.type === 'RECEIVE_DEBT_PAYMENT' && transaction.debtId) {
+        // If editing and changing away from RECEIVE_DEBT_PAYMENT, revert the debt payment
+        const debt = debts.find(d => d.id === transaction.debtId && d.isLent);
+        if (debt) {
+          const newPaidAmount = Math.max(0, Math.round(((debt.paidAmount || 0) - transaction.amount) * 100) / 100);
+          updateDebt(transaction.debtId, { paidAmount: newPaidAmount });
+          await updateDebtInDB(transaction.debtId, { paidAmount: newPaidAmount });
+        }
       }
 
       // 5. Update Goal if this is a goal saving
@@ -466,7 +513,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Tipo</label>
+          <label className="text-sm font-medium">Tipo de movimiento</label>
           <select
             {...register('type')}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -476,6 +523,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
             <option value="INCOME">Ingreso</option>
             <option value="TRANSFER">Transferencia</option>
             <option value="PAY_DEBT">Pagar Deuda</option>
+            <option value="RECEIVE_DEBT_PAYMENT">Recibir Pago de Deuda (Me deben)</option>
             <option value="PAY_CREDIT_CARD">Pagar Tarjeta de Crédito</option>
             <option value="SAVE_FOR_GOAL">Ahorrar para Meta</option>
           </select>
@@ -508,7 +556,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
       </div>
 
-      {transactionType !== 'PAY_DEBT' && transactionType !== 'SAVE_FOR_GOAL' && transactionType !== 'TRANSFER' && (
+      {transactionType !== 'PAY_DEBT' && transactionType !== 'RECEIVE_DEBT_PAYMENT' && transactionType !== 'SAVE_FOR_GOAL' && transactionType !== 'TRANSFER' && (
         <div className="space-y-2">
           <label className="text-sm font-medium">
             {transactionType === 'INCOME' ? 'Fuente de Ingreso' : 'Categoría'}
@@ -578,6 +626,29 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
             })}
           </select>
           {errors.debtId && <p className="text-xs text-red-500">{errors.debtId.message}</p>}
+        </div>
+      )}
+
+      {transactionType === 'RECEIVE_DEBT_PAYMENT' && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Préstamo (Quién me paga)</label>
+          <select
+            {...register('debtId')}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="transaction-debt-select"
+          >
+            <option value="">Seleccionar préstamo</option>
+            {debts.filter(debt => debt.isLent).map(debt => {
+              const remaining = debt.totalAmount - (debt.paidAmount || 0);
+              return (
+                <option key={debt.id} value={debt.id}>
+                  {debt.name} - Me deben: {debt.currency === 'USD' ? '$' : 'S/'} {remaining.toFixed(2)}
+                </option>
+              );
+            })}
+          </select>
+          {errors.debtId && <p className="text-xs text-red-500">{errors.debtId.message}</p>}
+          <p className="text-xs text-muted-foreground">* Yo di el dinero</p>
         </div>
       )}
 
@@ -670,7 +741,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       ) : (
         <div className="space-y-2">
           <label className="text-sm font-medium">
-            {(transactionType === 'PAY_DEBT' || transactionType === 'SAVE_FOR_GOAL') ? 'Cuenta para ' + (transactionType === 'PAY_DEBT' ? 'Pagar' : 'Ahorrar') : 'Cuenta'}
+            {(transactionType === 'PAY_DEBT' || transactionType === 'SAVE_FOR_GOAL') ? 'Cuenta para ' + (transactionType === 'PAY_DEBT' ? 'Pagar' : 'Ahorrar') : 
+             transactionType === 'RECEIVE_DEBT_PAYMENT' ? 'Cuenta de Destino (Donde recibo)' : 'Cuenta'}
           </label>
           <select
             {...register('accountId')}
@@ -705,6 +777,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         {transaction ? 'Actualizar Transacción' :
           transactionType === 'TRANSFER' ? 'Transferir' :
           transactionType === 'PAY_DEBT' ? 'Pagar Deuda' :
+          transactionType === 'RECEIVE_DEBT_PAYMENT' ? 'Registrar Pago Recibido' :
           transactionType === 'PAY_CREDIT_CARD' ? 'Pagar Tarjeta de Crédito' :
           transactionType === 'SAVE_FOR_GOAL' ? 'Ahorrar para Meta' :
           'Guardar Transacción'}

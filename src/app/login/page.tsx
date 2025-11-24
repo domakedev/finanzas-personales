@@ -29,8 +29,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">Bienvenido</CardTitle>
-          <CardDescription>Inicia sesión para gestionar tus finanzas</CardDescription>
+          <CardTitle className="text-2xl font-bold text-primary">Tu futuro financiero empieza aquí</CardTitle>
+          <CardDescription>Inicia sesión en 5 segundos. Tu información está protegida con Google.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button 

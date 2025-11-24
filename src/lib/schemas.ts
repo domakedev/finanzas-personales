@@ -14,7 +14,7 @@ export const TransactionSchema = z.object({
   description: z.string().min(1, "La descripción es obligatoria"),
   date: z.coerce.date().max(new Date(), "No puedes crear transacciones con fechas futuras"),
   createdAt: z.coerce.date().optional(),
-  type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER', 'PAY_DEBT', 'SAVE_FOR_GOAL', 'PAY_CREDIT_CARD']),
+  type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER', 'PAY_DEBT', 'SAVE_FOR_GOAL', 'PAY_CREDIT_CARD', 'RECEIVE_DEBT_PAYMENT']),
   categoryId: z.string().optional(),
   accountId: z.string().min(1, "Selecciona una cuenta"),
   fromAccountId: z.string().optional(), // For transfers
@@ -32,6 +32,7 @@ export const DebtSchema = z.object({
     (val) => (val === '' || val === null || val === undefined ? undefined : val),
     z.coerce.date().optional()
   ),
+  isLent: z.boolean().optional(),
   // Campos para tarjetas de crédito
   isCreditCard: z.boolean().optional(),
   creditCardType: z.enum(['BANK', 'WALLET']).optional(),

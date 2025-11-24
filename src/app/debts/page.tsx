@@ -16,6 +16,7 @@ import { Debt } from '@/types';
 
 export default function DebtsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLentModalOpen, setIsLentModalOpen] = useState(false);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; debtId: string | null }>({
     isOpen: false,
@@ -32,9 +33,10 @@ export default function DebtsPage() {
   const setDebts = useStore((state) => state.setDebts);
   const removeTransaction = useStore((state) => state.removeTransaction);
 
-  // Separar deudas normales y tarjetas de crédito
-  const normalDebts = debts.filter(debt => !debt.isCreditCard);
+  // Separar deudas normales, tarjetas de crédito y préstamos (Me deben)
+  const normalDebts = debts.filter(debt => !debt.isCreditCard && !debt.isLent);
   const creditCards = debts.filter(debt => debt.isCreditCard);
+  const lentDebts = debts.filter(debt => debt.isLent);
 
   const handleDelete = async (debtId: string) => {
     try {
@@ -50,12 +52,15 @@ export default function DebtsPage() {
     <Layout>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Deudas y Créditos</h1>
-          <p className="text-muted-foreground">Controla tus pagos pendientes</p>
+          <h1 className="text-3xl font-bold">Deudas y Préstamos</h1>
+          <p className="text-muted-foreground">Controla lo que debes y lo que te deben</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button onClick={() => setIsModalOpen(true)} data-testid="new-debt-button">
             <Plus className="mr-2 h-4 w-4" /> Nueva Deuda
+          </Button>
+          <Button onClick={() => setIsLentModalOpen(true)} variant="secondary" data-testid="new-lent-button">
+            <Plus className="mr-2 h-4 w-4" /> Nuevo Préstamo (Me deben)
           </Button>
           <Button onClick={() => setIsCreditCardModalOpen(true)} variant="outline" data-testid="new-credit-card-button">
             <Plus className="mr-2 h-4 w-4" /> Agregar Tarjeta de Crédito
@@ -65,7 +70,7 @@ export default function DebtsPage() {
 
       {/* Tarjetas de Crédito */}
       {creditCards.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-4 mb-8">
           <h2 className="text-xl font-semibold">Tarjetas de Crédito</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {creditCards.map((debt) => {
@@ -209,10 +214,75 @@ export default function DebtsPage() {
         </div>
       )}
 
+      {/* Me deben (Préstamos) */}
+      {lentDebts.length > 0 && (
+        <div className="space-y-4 mb-8">
+          <h2 className="text-xl font-semibold">Me deben (Préstamos)</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {lentDebts.map((debt) => {
+              const progress = ((debt.paidAmount || 0) / debt.totalAmount) * 100;
+              const remaining = debt.totalAmount - (debt.paidAmount || 0);
+
+              return (
+                <Card key={debt.id} data-testid={`lent-${debt.name}`}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      {debt.name}
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => {
+                          setEditingDebt(debt);
+                          setIsLentModalOpen(true);
+                        }}
+                        data-testid={`edit-lent-${debt.name}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => setDeleteConfirm({ isOpen: true, debtId: debt.id })}
+                        disabled={deletingIds.includes(debt.id)}
+                        data-testid={`delete-lent-${debt.name}`}
+                      >
+                        {deletingIds.includes(debt.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">
+                      {debt.currency === 'USD' ? '$' : 'S/'} {remaining.toFixed(2)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Me deben (Restante)
+                    </p>
+
+                    <div className="w-full bg-secondary/20 rounded-full h-2.5">
+                      <div
+                        className="bg-green-500 h-2.5 rounded-full transition-all duration-500"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-right mt-1 text-muted-foreground">
+                      {progress.toFixed(0)}% Pagado
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Deudas Normales */}
       {normalDebts.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Deudas</h2>
+          <h2 className="text-xl font-semibold">Mis Deudas</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {normalDebts.map((debt) => {
               const progress = ((debt.paidAmount || 0) / debt.totalAmount) * 100;
@@ -231,12 +301,7 @@ export default function DebtsPage() {
                         size="icon"
                         className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                         onClick={() => {
-                          if (debt.isCreditCard) {
-                            setEditingDebt(debt);
-                            setIsCreditCardModalOpen(true);
-                          } else {
-                            setEditConfirm({ isOpen: true, debt });
-                          }
+                          setEditConfirm({ isOpen: true, debt });
                         }}
                         data-testid={`edit-debt-${debt.name}`}
                       >
@@ -280,7 +345,7 @@ export default function DebtsPage() {
       )}
 
       <Modal
-        isOpen={isModalOpen || (editingDebt !== null && editingDebt.isCreditCard !== true)}
+        isOpen={isModalOpen || (editingDebt !== null && editingDebt.isCreditCard !== true && editingDebt.isLent !== true)}
         onClose={() => {
           setIsModalOpen(false);
           setEditingDebt(null);
@@ -293,6 +358,24 @@ export default function DebtsPage() {
             setEditingDebt(null);
           }}
           debt={editingDebt || undefined}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={isLentModalOpen || (editingDebt !== null && editingDebt.isLent === true)}
+        onClose={() => {
+          setIsLentModalOpen(false);
+          setEditingDebt(null);
+        }}
+        title={editingDebt ? "Editar Préstamo" : "Registrar Préstamo (Me deben)"}
+      >
+        <DebtForm
+          onSuccess={() => {
+            setIsLentModalOpen(false);
+            setEditingDebt(null);
+          }}
+          debt={editingDebt || undefined}
+          isLent={true}
         />
       </Modal>
 

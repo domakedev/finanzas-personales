@@ -76,7 +76,7 @@ export const GoalForm: React.FC<GoalFormProps> = ({ onSuccess, goal }) => {
           type="text"
           {...register('name')}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          placeholder="Ej: Laptop Nueva"
+          placeholder="Ej: MacBook Pro M3 / Vacaciones en Cusco"
           data-testid="goal-name-input"
         />
         {errors.name && <p className="text-xs text-red-500">{errors.name.message as string}</p>}

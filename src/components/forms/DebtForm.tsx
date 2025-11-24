@@ -14,9 +14,10 @@ import { Debt } from '@/types';
 interface DebtFormProps {
   onSuccess: () => void;
   debt?: Debt;
+  isLent?: boolean;
 }
 
-export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
+export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt, isLent = false }) => {
   const { user } = useAuth();
   const addDebtToStore = useStore((state) => state.addDebt);
   const updateDebtInStore = useStore((state) => state.updateDebt);
@@ -30,15 +31,13 @@ export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
       paidAmount: debt?.paidAmount || 0,
       currency: debt?.currency || 'PEN',
       dueDate: debt?.dueDate ? (debt.dueDate instanceof Date ? debt.dueDate.toISOString().split('T')[0] : new Date(debt.dueDate).toISOString().split('T')[0]) : undefined,
+      isLent: debt?.isLent ?? isLent,
     }
   });
 
   const paidAmount = Number(watch('paidAmount')) || 0;
   const totalAmount = Number(watch('totalAmount')) || 0;
   const isExceeded = paidAmount > totalAmount && totalAmount > 0;
-  console.log("🚀 ~ DebtForm ~ paidAmount > totalAmount:", {paidAmount, totalAmount})
-  console.log("🚀 ~ DebtForm ~ paidAmount > totalAmount:", typeof paidAmount)
-  console.log("🚀 ~ DebtForm ~ isExceeded:", isExceeded)
 
   const onSubmit = async (data: any) => {
     if (!user) return;
@@ -49,6 +48,9 @@ export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
       if (!debtData.dueDate || debtData.dueDate === '') {
         delete debtData.dueDate;
       }
+      
+      // Ensure isLent is set
+      debtData.isLent = isLent || debt?.isLent || false;
 
       if (debt) {
         updateDebtInStore(debt.id, debtData);
@@ -79,12 +81,12 @@ export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
-        <label className="text-sm font-medium">Nombre de la Deuda</label>
+        <label className="text-sm font-medium">{isLent ? 'Nombre del Préstamo / Persona' : 'Nombre de la Deuda'}</label>
         <input
           type="text"
           {...register('name')}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          placeholder="Ej: Tarjeta BBVA"
+          placeholder={isLent ? "Ej: Préstamo a Juan" : "Ej: Tarjeta BBVA"}
           data-testid="debt-name-input"
         />
         {errors.name && <p className="text-xs text-red-500">{errors.name.message as string}</p>}
@@ -105,7 +107,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Monto Total</label>
+          <label className="text-sm font-medium">{isLent ? 'Monto Prestado' : 'Monto Total'}</label>
           <input
             type="number"
             step="0.01"
@@ -118,7 +120,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Pagado hasta hoy</label>
+          <label className="text-sm font-medium">{isLent ? 'Me han pagado' : 'Ya pagaste'}</label>
           <input
             type="number"
             step="0.01"
@@ -129,7 +131,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
           />
           {errors.paidAmount && <p className="text-xs text-red-500">{errors.paidAmount.message as string}</p>}
           {isExceeded && (
-            <p className="text-xs text-amber-600 font-medium">⚠️ El monto pagado no puede exceder el total de la deuda</p>
+            <p className="text-xs text-amber-600 font-medium">⚠️ El monto que ingresaste es mayor al total de la deuda</p>
           )}
         </div>
       </div>
@@ -147,7 +149,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
 
       <Button type="submit" className="w-full" disabled={isSubmitting || isExceeded} data-testid="save-debt-button">
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {debt ? 'Actualizar Deuda' : 'Guardar Deuda'}
+        {debt ? 'Actualizar' : 'Guardar'}
       </Button>
     </form>
   );

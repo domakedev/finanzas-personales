@@ -94,19 +94,19 @@ export default function LandingPage() {
             </div>
 
             <h1 className={`text-4xl md:text-6xl font-bold mb-6 transition-all duration-700 ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}>
-              Toma el control de tu dinero <br className="hidden md:block" />
-              <span className="text-highlight">al estilo peruano</span>
+              Deja de preocuparte por el dinero <br className="hidden md:block" />
+              <span className="text-highlight">y empieza a hacerlo crecer</span>
             </h1>
 
             <p className={`text-lg md:text-xl mb-8 max-w-2xl text-blue-100 transition-all duration-700 ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}>
-              Gestiona tus cuentas de BCP, BBVA, Interbank, Yape, Plin, Efectivo en un solo lugar.
-              Visualiza tus metas de ahorro y elimina tus deudas.
+              Une todas tus cuentas de BCP, Interbank, Yape, Plin y efectivo en un solo lugar. 
+              Visualiza hacia dónde va cada sol y alcanza tus metas de ahorro más rápido.
             </p>
 
             <div className={`flex flex-col sm:flex-row gap-4 transition-all duration-700 ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}>
               <Link href={user ? "/dashboard" : "/login"}>
                 <Button size="lg" className="bg-highlight text-primary hover:bg-highlight/90 hover:scale-105 transition-transform duration-300 animate-pulse-glow w-full sm:w-auto">
-                  Empezar Gratis <ArrowRight className="ml-2 h-5 w-5" />
+                  Ordena tus finanzas hoy <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Link href="#features">
@@ -138,7 +138,7 @@ export default function LandingPage() {
                   Dashboard Inteligente
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  Visualiza todos tus saldos, ingresos y gastos del mes en un solo lugar. Tu resumen financiero completo al instante.
+                  ¿Te preguntas cuánto tienes realmente? Visualiza todos tus saldos, ingresos y gastos del mes en un solo lugar. Tu resumen financiero completo al instante.
                 </p>
               </div>
 
@@ -151,7 +151,7 @@ export default function LandingPage() {
                   Gestión de Cuentas
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  Administra todas tus cuentas bancarias, billeteras digitales (Yape, Plin) y efectivo en soles y dólares.
+                  ¿Cansado de saltar entre apps? Administra todas tus cuentas bancarias, billeteras digitales (Yape, Plin) y efectivo en un solo lugar.
                 </p>
               </div>
 
@@ -164,7 +164,7 @@ export default function LandingPage() {
                   Flujo de Transacciones
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  Registra y visualiza todos tus ingresos y gastos. Filtra por fecha, categoría o cuenta para un análisis detallado.
+                  Descubre en qué gastas realmente tu dinero. Registra cada sol y visualiza patrones que te ayudarán a ahorrar más cada mes.
                 </p>
               </div>
 
@@ -177,7 +177,7 @@ export default function LandingPage() {
                   Control de Deudas
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  Lleva un registro detallado de tus deudas y pagos. Visualiza cuánto has pagado y cuánto te falta por saldar.
+                  Deja de perder el sueño por las deudas. Visualiza tu progreso, recibe recordatorios y celebra cada pago que te acerca a estar libre de deudas.
                 </p>
               </div>
 
@@ -190,7 +190,7 @@ export default function LandingPage() {
                   Metas de Ahorro
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  Visualiza el crecimiento de tus ahorros con nuestro sistema gamificado de "Arbolito" y alcanza tus objetivos.
+                  Convierte el ahorro en un juego motivador. Ve crecer tu "arbolito" con cada sol que ahorras y alcanza esa meta que tanto deseas.
                 </p>
               </div>
 
@@ -203,7 +203,7 @@ export default function LandingPage() {
                   Presupuestos Mensuales
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  Define presupuestos por categoría y recibe alertas cuando te acerques a tu límite. Controla tus gastos mejor.
+                  Evita los sustos de fin de mes. Define presupuestos inteligentes por categoría y recibe alertas antes de pasarte.
                 </p>
               </div>
 
@@ -218,7 +218,7 @@ export default function LandingPage() {
                       Categorías Personalizadas
                     </h3>
                     <p className="text-muted-foreground text-sm max-w-3xl">
-                      Crea y administra tus propias categorías de gastos e ingresos. Organiza tus finanzas a tu manera y obtén reportes más precisos.
+                      Cada persona gasta diferente. Crea categorías personalizadas que se ajusten a tu estilo de vida y obtén reportes que realmente te sirvan.
                     </p>
                   </div>
                 </div>
@@ -255,7 +255,7 @@ export default function LandingPage() {
 
           <div className="container relative mx-auto px-4">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              ¿Listo para ordenar tus finanzas?
+              Únete a los peruanos que están construyendo un mejor futuro financiero
             </h2>
             <p className="text-lg text-blue-100 mb-8 max-w-xl mx-auto">
               Únete a cientos de peruanos que ya están tomando el control de su dinero
