@@ -11,7 +11,7 @@ import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { deleteTransactionAtomic } from '@/lib/db';
 import { useAuth } from '@/lib/auth';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, Sprout, HandCoins, ArrowRightLeft } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, Sprout, HandCoins, ArrowRightLeft, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
@@ -23,6 +23,7 @@ export default function TransactionsPage() {
     EXPENSE: 'border-red-200 dark:border-red-700',
     TRANSFER: 'border-blue-200 dark:border-blue-700',
     PAY_DEBT: 'border-purple-200 dark:border-purple-700',
+    PAY_CREDIT_CARD: 'border-orange-200 dark:border-orange-700',
     SAVE_FOR_GOAL: 'border-amber-200 dark:border-amber-700',
   };
 
@@ -32,6 +33,7 @@ export default function TransactionsPage() {
     EXPENSE: 'bg-red-600 dark:bg-red-500 text-white',
     TRANSFER: 'bg-blue-600 dark:bg-blue-500 text-white',
     PAY_DEBT: 'bg-purple-600 dark:bg-purple-500 text-white',
+    PAY_CREDIT_CARD: 'bg-orange-600 dark:bg-orange-500 text-white',
     SAVE_FOR_GOAL: 'bg-green-800 dark:bg-green-600 text-white',
   };
 
@@ -95,10 +97,20 @@ export default function TransactionsPage() {
         if (account) {
           updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
         }
-        const debt = debts.find(d => d.id === transaction.debtId);
+        const debt = debts.find(d => d.id === transaction.debtId && !d.isCreditCard);
         if (debt) {
-          const newPaidAmount = debt.paidAmount - transaction.amount;
+          const newPaidAmount = Math.max(0, Math.round(((debt.paidAmount || 0) - transaction.amount) * 100) / 100);
           updateDebtInStore(debt.id, { paidAmount: newPaidAmount });
+        }
+      } else if (transaction.type === 'PAY_CREDIT_CARD' && transaction.accountId) {
+        const account = accounts.find(a => a.id === transaction.accountId);
+        if (account) {
+          updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
+        }
+        const creditCard = debts.find(d => d.id === transaction.debtId && d.isCreditCard);
+        if (creditCard) {
+          const newPaidAmount = Math.max(0, Math.round(((creditCard.paidAmount || 0) - transaction.amount) * 100) / 100);
+          updateDebtInStore(creditCard.id, { paidAmount: newPaidAmount });
         }
       } else if (transaction.type === 'SAVE_FOR_GOAL' && transaction.accountId) {
         const account = accounts.find(a => a.id === transaction.accountId);
@@ -137,6 +149,7 @@ export default function TransactionsPage() {
       case 'EXPENSE': return 'Gasto';
       case 'TRANSFER': return 'Transferencia';
       case 'PAY_DEBT': return 'Pago Deuda';
+      case 'PAY_CREDIT_CARD': return 'Pago Tarjeta Crédito';
       case 'SAVE_FOR_GOAL': return 'Ahorro Meta';
       default: return type;
     }
@@ -171,6 +184,9 @@ export default function TransactionsPage() {
                   if (tx.type === 'PAY_DEBT') {
                     return <HandCoins className="h-5 w-5" />;
                   }
+                  if (tx.type === 'PAY_CREDIT_CARD') {
+                    return <CreditCard className="h-5 w-5" />;
+                  }
                   if (tx.type === 'SAVE_FOR_GOAL') {
                     return <Sprout className="h-5 w-5" />;
                   }
@@ -180,6 +196,7 @@ export default function TransactionsPage() {
                 const getTransactionColor = () => {
                   if (tx.type === 'TRANSFER') return 'bg-blue-200/50 dark:bg-blue-700/50 text-blue-700 dark:text-blue-300';
                   if (tx.type === 'PAY_DEBT') return 'bg-purple-200/50 dark:bg-purple-700/50 text-purple-700 dark:text-purple-300';
+                  if (tx.type === 'PAY_CREDIT_CARD') return 'bg-orange-200/50 dark:bg-orange-700/50 text-orange-700 dark:text-orange-300';
                   if (tx.type === 'SAVE_FOR_GOAL') return 'bg-green-800/50 dark:bg-green-600/50 text-green-900 dark:text-green-200';
                   if (tx.type === 'INCOME') return 'bg-green-200/50 dark:bg-green-700/50 text-green-700 dark:text-green-300';
                   return 'bg-red-200/50 dark:bg-red-700/50 text-red-700 dark:text-red-300';
@@ -271,6 +288,7 @@ export default function TransactionsPage() {
                       <div className={`font-bold text-right ${
                         tx.type === 'TRANSFER' ? 'text-blue-800 dark:text-blue-200' :
                         tx.type === 'PAY_DEBT' ? 'text-purple-800 dark:text-purple-200' :
+                        tx.type === 'PAY_CREDIT_CARD' ? 'text-orange-800 dark:text-orange-200' :
                         tx.type === 'SAVE_FOR_GOAL' ? 'text-amber-800 dark:text-amber-200' :
                         tx.type === 'INCOME' ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'
                       }`}>

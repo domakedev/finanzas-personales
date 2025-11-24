@@ -144,6 +144,7 @@ export const DebtForm: React.FC<DebtFormProps> = ({ onSuccess, debt }) => {
         />
       </div>
 
+
       <Button type="submit" className="w-full" disabled={isSubmitting || isExceeded} data-testid="save-debt-button">
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {debt ? 'Actualizar Deuda' : 'Guardar Deuda'}

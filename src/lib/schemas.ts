@@ -14,7 +14,7 @@ export const TransactionSchema = z.object({
   description: z.string().min(1, "La descripción es obligatoria"),
   date: z.coerce.date().max(new Date(), "No puedes crear transacciones con fechas futuras"),
   createdAt: z.coerce.date().optional(),
-  type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER', 'PAY_DEBT', 'SAVE_FOR_GOAL']),
+  type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER', 'PAY_DEBT', 'SAVE_FOR_GOAL', 'PAY_CREDIT_CARD']),
   categoryId: z.string().optional(),
   accountId: z.string().min(1, "Selecciona una cuenta"),
   fromAccountId: z.string().optional(), // For transfers
@@ -26,13 +26,30 @@ export const TransactionSchema = z.object({
 export const DebtSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   totalAmount: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
-  paidAmount: z.coerce.number().min(0, "El monto pagado no puede ser negativo"),
+  paidAmount: z.coerce.number().min(0, "El monto pagado no puede ser negativo").optional(),
   currency: z.enum(['PEN', 'USD']),
   dueDate: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? undefined : val),
     z.coerce.date().optional()
   ),
-}).refine((data) => data.paidAmount <= data.totalAmount, {
+  // Campos para tarjetas de crédito
+  isCreditCard: z.boolean().optional(),
+  creditCardType: z.enum(['BANK', 'WALLET']).optional(),
+  paymentDate: z.coerce.number().min(1).max(31).optional(),
+  creditLimit: z.coerce.number().min(0).optional(),
+  logo: z.string().optional(),
+  icon: z.string().optional(),
+  lastFourDigits: z.string().regex(/^\d{4}$/, "Deben ser exactamente 4 dígitos").optional(),
+  cutoffDate: z.coerce.number().min(1).max(31).optional(),
+  minimumPayment: z.coerce.number().min(0).optional(),
+  totalPayment: z.coerce.number().min(0).optional(),
+}).refine((data) => {
+  // Solo validar paidAmount si existe
+  if (data.paidAmount !== undefined) {
+    return data.paidAmount <= data.totalAmount;
+  }
+  return true;
+}, {
   message: "El monto pagado no puede exceder el total de la deuda",
   path: ["paidAmount"],
 });

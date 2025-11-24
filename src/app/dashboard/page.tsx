@@ -21,7 +21,7 @@ export default function Dashboard() {
    const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
    const [detailModal, setDetailModal] = useState<{
      isOpen: boolean;
-     type: 'balance' | 'debt' | 'income' | 'expense' | null;
+     type: 'balance' | 'debt' | 'credit_card_debt' | 'income' | 'expense' | null;
      currency?: 'PEN' | 'USD';
    }>({ isOpen: false, type: null });
 
@@ -39,7 +39,8 @@ export default function Dashboard() {
   const totalBalancePEN = accountsPEN.reduce((sum, acc) => sum + acc.balance, 0);
   const totalBalanceUSD = accountsUSD.reduce((sum, acc) => sum + acc.balance, 0);
   
-  const totalDebt = debts.reduce((sum, debt) => sum + (debt.totalAmount - debt.paidAmount), 0);
+  const totalDebt = debts.filter(debt => !debt.isCreditCard).reduce((sum, debt) => sum + (debt.totalAmount - (debt.paidAmount || 0)), 0);
+  const totalCreditCardDebt = debts.filter(debt => debt.isCreditCard).reduce((sum, debt) => sum + (debt.totalAmount - (debt.paidAmount || 0)), 0);
   
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
@@ -90,10 +91,17 @@ export default function Dashboard() {
             />
           </div>
           <div onClick={() => openDetailModal('debt')} className="cursor-pointer">
-            <SummaryCard 
-              title="Deuda Total" 
-              amount={`S/ ${totalDebt.toFixed(2)}`} 
-              icon={CreditCard} 
+            <SummaryCard
+              title="Deuda Total"
+              amount={`S/ ${totalDebt.toFixed(2)}`}
+              icon={CreditCard}
+            />
+          </div>
+          <div onClick={() => openDetailModal('credit_card_debt')} className="cursor-pointer">
+            <SummaryCard
+              title="Tarjetas de Crédito"
+              amount={`S/ ${totalCreditCardDebt.toFixed(2)}`}
+              icon={CreditCard}
             />
           </div>
           <div onClick={() => openDetailModal('income')} className="cursor-pointer">
@@ -206,6 +214,7 @@ export default function Dashboard() {
         title={
           detailModal.type === 'balance' ? `Detalle de Saldo (${detailModal.currency})` :
           detailModal.type === 'debt' ? 'Detalle de Deudas' :
+          detailModal.type === 'credit_card_debt' ? 'Detalle de Tarjetas de Crédito' :
           detailModal.type === 'income' ? `Detalle de Ingresos (${monthNameCapitalized})` :
           detailModal.type === 'expense' ? `Detalle de Gastos (${monthNameCapitalized})` : ''
         }
@@ -237,18 +246,18 @@ export default function Dashboard() {
 
           {detailModal.type === 'debt' && (
             <>
-              {debts.length === 0 ? (
+              {debts.filter(debt => !debt.isCreditCard).length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No tienes deudas registradas.</p>
               ) : (
                 <>
-                  {debts.map(debt => (
+                  {debts.filter(debt => !debt.isCreditCard).map(debt => (
                     <div key={debt.id} className="p-3 border rounded-lg">
                       <div className="flex justify-between items-center mb-2">
                         <p className="font-medium">{debt.name}</p>
-                        <p className="font-bold text-red-600">S/ {(debt.totalAmount - debt.paidAmount).toFixed(2)}</p>
+                        <p className="font-bold text-red-600">S/ {(debt.totalAmount - (debt.paidAmount || 0)).toFixed(2)}</p>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Pagado: S/ {debt.paidAmount.toFixed(2)} de S/ {debt.totalAmount.toFixed(2)}
+                        Pagado: S/ {(debt.paidAmount || 0).toFixed(2)} de S/ {debt.totalAmount.toFixed(2)}
                       </div>
                     </div>
                   ))}
@@ -256,6 +265,89 @@ export default function Dashboard() {
                     <div className="flex justify-between items-center">
                       <p className="font-semibold">Total Pendiente:</p>
                       <p className="text-xl font-bold text-red-600">S/ {totalDebt.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {detailModal.type === 'credit_card_debt' && (
+            <>
+              {debts.filter(debt => debt.isCreditCard).length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No tienes tarjetas de crédito registradas.</p>
+              ) : (
+                <>
+                  {debts.filter(debt => debt.isCreditCard).map(debt => {
+                    // Calcular próxima fecha de corte para mostrar
+                    const getNextCutoffDate = () => {
+                      if (!debt.cutoffDate) return null;
+                      const today = new Date();
+                      const cutoffDay = debt.cutoffDate;
+                      const currentYear = today.getFullYear();
+                      const currentMonth = today.getMonth();
+
+                      let cutoffDate = new Date(currentYear, currentMonth, cutoffDay);
+                      if (cutoffDate < today) {
+                        cutoffDate = new Date(currentYear, currentMonth + 1, cutoffDay);
+                      }
+                      return cutoffDate;
+                    };
+
+                    const nextCutoffDate = getNextCutoffDate();
+
+                    // Calcular próxima fecha de pago
+                    const getNextPaymentDate = () => {
+                      if (!debt.paymentDate) return null;
+                      const today = new Date();
+                      const paymentDay = debt.paymentDate;
+                      const currentYear = today.getFullYear();
+                      const currentMonth = today.getMonth();
+
+                      let paymentDate = new Date(currentYear, currentMonth, paymentDay);
+                      if (paymentDate < today) {
+                        paymentDate = new Date(currentYear, currentMonth + 1, paymentDay);
+                      }
+                      return paymentDate;
+                    };
+
+                    const nextPaymentDate = getNextPaymentDate();
+
+                    return (
+                      <div key={debt.id} className="p-3 border rounded-lg">
+                        <div className="flex justify-between items-center mb-2">
+                          <p className="font-medium flex items-center gap-2">
+                            {debt.logo && <img src={debt.logo} alt={debt.name} className="w-6 h-6" />}
+                            {debt.icon && <span>{debt.icon}</span>}
+                            {debt.name}
+                            {debt.lastFourDigits && (
+                              <span className="text-xs text-muted-foreground">
+                                ****-****-****-{debt.lastFourDigits}
+                              </span>
+                            )}
+                          </p>
+                          <p className="font-bold text-red-600">S/ {(debt.totalAmount - (debt.paidAmount ?? 0)).toFixed(2)}</p>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Pagado: S/ {(debt.paidAmount ?? 0).toFixed(2)} de S/ {debt.totalAmount.toFixed(2)}
+                        </div>
+                        {debt.cutoffDate && nextCutoffDate && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Próxima corte: {nextCutoffDate.toLocaleDateString('es-PE')}
+                          </div>
+                        )}
+                        {debt.paymentDate && nextPaymentDate && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Próximo pago: {nextPaymentDate.toLocaleDateString('es-PE')}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <div className="pt-3 border-t">
+                    <div className="flex justify-between items-center">
+                      <p className="font-semibold">Total Pendiente:</p>
+                      <p className="text-xl font-bold text-red-600">S/ {totalCreditCardDebt.toFixed(2)}</p>
                     </div>
                   </div>
                 </>

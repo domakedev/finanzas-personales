@@ -14,7 +14,7 @@ export interface Transaction {
   description: string;
   date: Date;
   createdAt: Date;
-  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'PAY_DEBT' | 'SAVE_FOR_GOAL';
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'PAY_DEBT' | 'SAVE_FOR_GOAL' | 'PAY_CREDIT_CARD';
   categoryId?: string;
   accountId: string;
   fromAccountId?: string; // For transfers
@@ -30,9 +30,20 @@ export interface Debt {
   id: string;
   name: string;
   totalAmount: number;
-  paidAmount: number;
+  paidAmount?: number; // Opcional para tarjetas de crédito
   currency: 'PEN' | 'USD';
   dueDate?: Date;
+  // Campos para tarjetas de crédito
+  isCreditCard?: boolean;
+  creditCardType?: 'BANK' | 'WALLET';
+  paymentDate?: number; // Día del mes de pago (1-31)
+  creditLimit?: number; // Límite de crédito
+  logo?: string; // Path to logo image (e.g., '/logos/bbva.png')
+  icon?: string; // Emoji icon (e.g., '💳')
+  lastFourDigits?: string; // Últimos 4 dígitos de la tarjeta
+  cutoffDate?: number; // Día del mes de corte (1-31)
+  minimumPayment?: number; // Pago mínimo del mes
+  totalPayment?: number; // Pago total del mes
 }
 
 export interface Goal {

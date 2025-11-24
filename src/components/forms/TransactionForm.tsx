@@ -131,19 +131,44 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
     if (data.type === 'PAY_DEBT') {
       if (!data.debtId) return "Debes seleccionar una deuda";
 
-      const debt = debts.find(d => d.id === data.debtId);
+      const debt = debts.find(d => d.id === data.debtId && !d.isCreditCard);
       const account = accounts.find(a => a.id === data.accountId);
 
       if (!account) return "La cuenta seleccionada no existe";
 
       if (debt) {
-        const remainingDebt = debt.totalAmount - debt.paidAmount;
+        const remainingDebt = debt.totalAmount - (debt.paidAmount || 0);
         if (remainingDebt <= 0) return "Esta deuda ya está completamente pagada";
         if (data.amount > remainingDebt) {
           return `El monto excede la deuda restante. Máximo: ${debt.currency === 'USD' ? '$' : 'S/'} ${remainingDebt.toFixed(2)}`;
         }
       } else {
         // Debt doesn't exist, but allow the transaction (it will be orphaned)
+        // Could show a warning, but for now just allow
+      }
+
+      if (account.balance < data.amount) {
+        return `Saldo insuficiente. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}`;
+      }
+    }
+
+    // Validate PAY_CREDIT_CARD
+    if (data.type === 'PAY_CREDIT_CARD') {
+      if (!data.debtId) return "Debes seleccionar una tarjeta de crédito";
+
+      const creditCard = debts.find(d => d.id === data.debtId && d.isCreditCard);
+      const account = accounts.find(a => a.id === data.accountId);
+
+      if (!account) return "La cuenta seleccionada no existe";
+
+      if (creditCard) {
+        const remainingDebt = creditCard.totalAmount - (creditCard.paidAmount || 0);
+        if (remainingDebt <= 0) return "Esta tarjeta de crédito ya está completamente pagada";
+        if (data.amount > remainingDebt) {
+          return `El monto excede la deuda restante. Máximo: ${creditCard.currency === 'USD' ? '$' : 'S/'} ${remainingDebt.toFixed(2)}`;
+        }
+      } else {
+        // Credit card doesn't exist, but allow the transaction (it will be orphaned)
         // Could show a warning, but for now just allow
       }
 
@@ -274,6 +299,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         addChange(data.accountId, amountToAdd);
       } else if (data.type === 'PAY_DEBT') {
         addChange(data.accountId, -data.amount);
+      } else if (data.type === 'PAY_CREDIT_CARD') {
+        addChange(data.accountId, -data.amount);
       } else if (data.type === 'SAVE_FOR_GOAL') {
         addChange(data.accountId, -data.amount);
       }
@@ -295,32 +322,59 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
 
       // 4. Update Debt if this is a debt payment
       if (data.type === 'PAY_DEBT' && data.debtId) {
-        const debt = debts.find(d => d.id === data.debtId);
+        const debt = debts.find(d => d.id === data.debtId && !d.isCreditCard);
         if (debt) {
-          let newPaidAmount = debt.paidAmount;
+          let newPaidAmount = debt.paidAmount || 0;
 
           // If editing, revert the old payment first
           if (transaction && transaction.type === 'PAY_DEBT' && transaction.debtId === data.debtId) {
-            newPaidAmount -= transaction.amount;
+            newPaidAmount = Math.max(0, Math.round((newPaidAmount - transaction.amount) * 100) / 100);
           }
 
           // Apply the new payment
-          newPaidAmount += data.amount;
+          newPaidAmount = Math.round((newPaidAmount + data.amount) * 100) / 100;
 
           // Update both store and DB
           updateDebt(data.debtId, { paidAmount: newPaidAmount });
           await updateDebtInDB(data.debtId, { paidAmount: newPaidAmount });
         }
         // If debt doesn't exist, don't update paidAmount (transaction becomes orphaned)
+      } else if (data.type === 'PAY_CREDIT_CARD' && data.debtId) {
+        const creditCard = debts.find(d => d.id === data.debtId && d.isCreditCard);
+        if (creditCard) {
+          let newPaidAmount = creditCard.paidAmount || 0;
+
+          // If editing, revert the old payment first
+          if (transaction && transaction.type === 'PAY_CREDIT_CARD' && transaction.debtId === data.debtId) {
+            newPaidAmount = Math.max(0, Math.round((newPaidAmount - transaction.amount) * 100) / 100);
+          }
+
+          // Apply the new payment
+          newPaidAmount = Math.round((newPaidAmount + data.amount) * 100) / 100;
+
+          // Update both store and DB
+          updateDebt(data.debtId, { paidAmount: newPaidAmount });
+          await updateDebtInDB(data.debtId, { paidAmount: newPaidAmount });
+        }
+        // If credit card doesn't exist, don't update paidAmount (transaction becomes orphaned)
       } else if (transaction && transaction.type === 'PAY_DEBT' && transaction.debtId) {
         // If editing and changing away from PAY_DEBT, revert the debt payment
-        const debt = debts.find(d => d.id === transaction.debtId);
+        const debt = debts.find(d => d.id === transaction.debtId && !d.isCreditCard);
         if (debt) {
-          const newPaidAmount = debt.paidAmount - transaction.amount;
+          const newPaidAmount = Math.max(0, Math.round(((debt.paidAmount || 0) - transaction.amount) * 100) / 100);
           updateDebt(transaction.debtId, { paidAmount: newPaidAmount });
           await updateDebtInDB(transaction.debtId, { paidAmount: newPaidAmount });
         }
         // If debt doesn't exist, can't revert (but that's ok, it was already orphaned)
+      } else if (transaction && transaction.type === 'PAY_CREDIT_CARD' && transaction.debtId) {
+        // If editing and changing away from PAY_CREDIT_CARD, revert the credit card payment
+        const creditCard = debts.find(d => d.id === transaction.debtId && d.isCreditCard);
+        if (creditCard) {
+          const newPaidAmount = Math.max(0, Math.round(((creditCard.paidAmount || 0) - transaction.amount) * 100) / 100);
+          updateDebt(transaction.debtId, { paidAmount: newPaidAmount });
+          await updateDebtInDB(transaction.debtId, { paidAmount: newPaidAmount });
+        }
+        // If credit card doesn't exist, can't revert (but that's ok, it was already orphaned)
       }
 
       // 5. Update Goal if this is a goal saving
@@ -331,11 +385,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
 
           // If editing, revert the old saving first
           if (transaction && transaction.type === 'SAVE_FOR_GOAL' && transaction.goalId === data.goalId) {
-            newCurrentAmount -= transaction.amount;
+            newCurrentAmount = Math.max(0, Math.round((newCurrentAmount - transaction.amount) * 100) / 100);
           }
 
           // Apply the new saving
-          newCurrentAmount += data.amount;
+          newCurrentAmount = Math.round((newCurrentAmount + data.amount) * 100) / 100;
 
           // Update both store and DB
           updateGoal(data.goalId, { currentAmount: newCurrentAmount });
@@ -346,7 +400,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         // If editing and changing away from SAVE_FOR_GOAL, revert the goal saving
         const goal = goals.find(g => g.id === transaction.goalId);
         if (goal) {
-          const newCurrentAmount = goal.currentAmount - transaction.amount;
+          const newCurrentAmount = Math.max(0, Math.round((goal.currentAmount - transaction.amount) * 100) / 100);
           updateGoal(transaction.goalId, { currentAmount: newCurrentAmount });
           await updateGoalInDB(transaction.goalId, { currentAmount: newCurrentAmount });
         }
@@ -422,6 +476,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
             <option value="INCOME">Ingreso</option>
             <option value="TRANSFER">Transferencia</option>
             <option value="PAY_DEBT">Pagar Deuda</option>
+            <option value="PAY_CREDIT_CARD">Pagar Tarjeta de Crédito</option>
             <option value="SAVE_FOR_GOAL">Ahorrar para Meta</option>
           </select>
           {errors.type && <p className="text-xs text-red-500">{errors.type.message}</p>}
@@ -491,8 +546,30 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
             data-testid="transaction-debt-select"
           >
             <option value="">Seleccionar deuda</option>
-            {debts.map(debt => {
-              const remaining = debt.totalAmount - debt.paidAmount;
+            {debts.filter(debt => !debt.isCreditCard).map(debt => {
+              const remaining = debt.totalAmount - (debt.paidAmount || 0);
+              return (
+                <option key={debt.id} value={debt.id}>
+                  {debt.name} - Restante: {debt.currency === 'USD' ? '$' : 'S/'} {remaining.toFixed(2)}
+                </option>
+              );
+            })}
+          </select>
+          {errors.debtId && <p className="text-xs text-red-500">{errors.debtId.message}</p>}
+        </div>
+      )}
+
+      {transactionType === 'PAY_CREDIT_CARD' && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Tarjeta de Crédito a Pagar</label>
+          <select
+            {...register('debtId')}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="transaction-credit-card-select"
+          >
+            <option value="">Seleccionar tarjeta de crédito</option>
+            {debts.filter(debt => debt.isCreditCard).map(debt => {
+              const remaining = debt.totalAmount - (debt.paidAmount || 0);
               return (
                 <option key={debt.id} value={debt.id}>
                   {debt.name} - Restante: {debt.currency === 'USD' ? '$' : 'S/'} {remaining.toFixed(2)}
@@ -628,6 +705,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         {transaction ? 'Actualizar Transacción' :
           transactionType === 'TRANSFER' ? 'Transferir' :
           transactionType === 'PAY_DEBT' ? 'Pagar Deuda' :
+          transactionType === 'PAY_CREDIT_CARD' ? 'Pagar Tarjeta de Crédito' :
           transactionType === 'SAVE_FOR_GOAL' ? 'Ahorrar para Meta' :
           'Guardar Transacción'}
       </Button>

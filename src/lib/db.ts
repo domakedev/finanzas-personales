@@ -152,8 +152,36 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
           const debtDoc = await getDoc(debtRef);
           if (debtDoc.exists()) {
             const currentPaidAmount = Number(debtDoc.data().paidAmount) || 0;
-            const newPaidAmount = currentPaidAmount - amount;
-            updatePromises.push(updateDoc(debtRef, { paidAmount: Math.max(0, newPaidAmount) }));
+            const newPaidAmount = Math.max(0, Math.round((currentPaidAmount - amount) * 100) / 100);
+            updatePromises.push(updateDoc(debtRef, { paidAmount: newPaidAmount }));
+          }
+        } catch (error) {
+          console.error("Error preparing debt update:", error);
+          // Continue without updating debt
+        }
+      }
+    } else if (type === 'PAY_CREDIT_CARD') {
+      // Revert account balance (add back the payment)
+      if (accountId) {
+        const accountRef = doc(db, 'accounts', accountId);
+        const accountDoc = await getDoc(accountRef);
+        if (accountDoc.exists()) {
+          const currentBalance = Number(accountDoc.data().balance) || 0;
+          const newBalance = currentBalance + amount;
+          updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
+        }
+      }
+
+      // Revert debt paidAmount (subtract the payment) - only if debt exists
+      if (debtId) {
+        try {
+          const debtRef = doc(db, 'debts', debtId);
+          // Check if debt exists in firebase?
+          const debtDoc = await getDoc(debtRef);
+          if (debtDoc.exists()) {
+            const currentPaidAmount = Number(debtDoc.data().paidAmount) || 0;
+            const newPaidAmount = Math.max(0, Math.round((currentPaidAmount - amount) * 100) / 100);
+            updatePromises.push(updateDoc(debtRef, { paidAmount: newPaidAmount }));
           }
         } catch (error) {
           console.error("Error preparing debt update:", error);
@@ -181,8 +209,8 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
           const goalDoc = await getDoc(goalRef);
           if (goalDoc.exists()) {
             const currentCurrentAmount = Number(goalDoc.data().currentAmount) || 0;
-            const newCurrentAmount = currentCurrentAmount - amount;
-            updatePromises.push(updateDoc(goalRef, { currentAmount: Math.max(0, newCurrentAmount) }));
+            const newCurrentAmount = Math.max(0, Math.round((currentCurrentAmount - amount) * 100) / 100);
+            updatePromises.push(updateDoc(goalRef, { currentAmount: newCurrentAmount }));
           }
         } catch (error) {
           console.error("Error preparing goal update:", error);
@@ -212,7 +240,11 @@ export const getDebts = async (userId: string): Promise<Debt[]> => {
     return {
       ...convertDoc<Debt>(doc),
       // Convert Timestamp to Date if dueDate exists
-      dueDate: data.dueDate ? (data.dueDate as Timestamp).toDate() : undefined
+      dueDate: data.dueDate ? (data.dueDate as Timestamp).toDate() : undefined,
+      // paymentDate is stored as number (day of month)
+      paymentDate: data.paymentDate ? Number(data.paymentDate) : undefined,
+      // cutoffDate is stored as number (day of month)
+      cutoffDate: data.cutoffDate ? Number(data.cutoffDate) : undefined
     };
   });
 };
@@ -223,6 +255,8 @@ export const addDebt = async (userId: string, debt: Omit<Debt, 'id'>) => {
   if (debt.dueDate) {
     debtData.dueDate = Timestamp.fromDate(debt.dueDate instanceof Date ? debt.dueDate : new Date(debt.dueDate));
   }
+  // paymentDate is stored as number (no conversion needed)
+  // cutoffDate is stored as number (no conversion needed)
   return addDoc(collection(db, 'debts'), debtData);
 };
 
@@ -235,6 +269,8 @@ export const updateDebt = async (debtId: string, debt: Partial<Debt>) => {
     }
     // If dueDate is explicitly set to undefined/null, don't include it in the update
   }
+  // paymentDate is stored as number (no conversion needed)
+  // cutoffDate is stored as number (no conversion needed)
   return updateDoc(doc(db, 'debts', debtId), debtData);
 };
 
