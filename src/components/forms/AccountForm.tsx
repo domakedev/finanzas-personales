@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { Loader2 } from 'lucide-react';
 import { Account } from '@/types';
 import { ACCOUNT_OPTIONS } from '@/constants/categories';
-import Image from 'next/image';
+import { OptionSelector } from '@/components/ui/OptionSelector';
 
 interface AccountFormProps {
   onSuccess: () => void;
@@ -44,15 +44,15 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
 
   const accountType = watch('type');
 
-  const handleOptionSelect = (option: typeof ACCOUNT_OPTIONS[0]) => {
+  const handleOptionSelect = (option: { id: string; name: string; logo?: string; icon?: string; type: string }) => {
     setSelectedOption(option.name);
     setValue('name', option.name);
     setValue('type', option.type as 'BANK' | 'WALLET' | 'CASH');
     // Save logo or icon
-    if ('logo' in option) {
+    if (option.logo) {
       setValue('logo', option.logo);
       setValue('icon', undefined);
-    } else if ('icon' in option) {
+    } else if (option.icon) {
       setValue('icon', option.icon);
       setValue('logo', undefined);
     }
@@ -137,39 +137,13 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
         <label className="text-sm font-medium">
           {accountType === 'BANK' ? 'Banco' : accountType === 'WALLET' ? 'Billetera' : 'Tipo'}
         </label>
-        <div className="grid grid-cols-3 gap-3">
-          {filteredOptions.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => handleOptionSelect(option)}
-              className={`p-3 border-2 rounded-lg flex flex-col items-center gap-2 transition-all hover:border-primary/50 cursor-pointer ${
-                selectedOption === option.name ? 'border-primary bg-primary/5' : 'border-gray-200'
-              }`}
-              data-testid={`account-option-${option.id}`}
-            >
-              {'logo' in option ? (
-                <div className="w-12 h-12 relative">
-                  <Image
-                    src={option.logo}
-                    alt={option.name}
-                    fill
-                    className="object-contain"
-                    onError={(e) => {
-                      // Fallback si la imagen no existe
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="w-12 h-12 flex items-center justify-center text-3xl">
-                  {option.icon}
-                </div>
-              )}
-              <span className="text-xs font-medium text-center">{option.name}</span>
-            </button>
-          ))}
-        </div>
+        <OptionSelector
+          options={filteredOptions}
+          selectedOption={selectedOption}
+          onSelect={handleOptionSelect}
+          gridCols="grid-cols-3"
+          testIdPrefix="account-option"
+        />
       </div>
 
       <div className="space-y-2">

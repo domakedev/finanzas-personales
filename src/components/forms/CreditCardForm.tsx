@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { Loader2 } from 'lucide-react';
 import { Debt } from '@/types';
 import { BANKS, DIGITAL_WALLETS } from '@/constants/categories';
-import Image from 'next/image';
+import { OptionSelector } from '@/components/ui/OptionSelector';
 
 interface CreditCardFormProps {
   onSuccess: () => void;
@@ -51,7 +51,7 @@ export const CreditCardForm: React.FC<CreditCardFormProps> = ({ onSuccess, debt 
   const totalAmount = Number(watch('totalAmount')) || 0;
   const isExceeded = totalAmount > creditLimit && creditLimit > 0;
 
-  const handleOptionSelect = (option: typeof BANKS[0] | typeof DIGITAL_WALLETS[0]) => {
+  const handleOptionSelect = (option: { id: string; name: string; logo?: string; icon?: string; type: string }) => {
     setSelectedOption(option.name);
     setValue('name', option.name);
     setValue('creditCardType', option.type as 'BANK' | 'WALLET');
@@ -156,33 +156,12 @@ export const CreditCardForm: React.FC<CreditCardFormProps> = ({ onSuccess, debt 
         <label className="text-sm font-medium">
           {creditCardType === 'BANK' ? 'Banco' : 'Billetera'}
         </label>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {filteredOptions.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => handleOptionSelect(option)}
-              className={`p-3 border-2 rounded-lg flex flex-col items-center gap-2 transition-all hover:border-primary/50 cursor-pointer ${
-                selectedOption === option.name ? 'border-primary bg-primary/5' : 'border-gray-200'
-              }`}
-              data-testid={`credit-card-option-${option.id}`}
-            >
-              <div className="w-12 h-12 relative">
-                <Image
-                  src={option.logo}
-                  alt={option.name}
-                  fill
-                  className="object-contain"
-                  onError={(e) => {
-                    // Fallback si la imagen no existe
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-              <span className="text-xs font-medium text-center">{option.name}</span>
-            </button>
-          ))}
-        </div>
+        <OptionSelector
+          options={filteredOptions}
+          selectedOption={selectedOption}
+          onSelect={handleOptionSelect}
+          testIdPrefix="credit-card-option"
+        />
       </div>
 
       <div className="space-y-2">

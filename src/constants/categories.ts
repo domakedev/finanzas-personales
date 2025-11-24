@@ -18,6 +18,8 @@ export const BANKS = [
   { id: 'interbank', name: 'Interbank', logo: '/logos/interbank.png', type: 'BANK' },
   { id: 'bcp', name: 'BCP', logo: '/logos/bcp.png', type: 'BANK' },
   { id: 'bbva', name: 'BBVA', logo: '/logos/bbva.png', type: 'BANK' },
+  { id: 'io', name: 'io', logo: '/logos/io.png', type: 'BANK' },
+  { id: 'oh', name: 'oh!', logo: '/logos/oh.png', type: 'BANK' },
 ];
 
 // Billeteras digitales
