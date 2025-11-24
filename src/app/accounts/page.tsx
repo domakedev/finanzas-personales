@@ -11,7 +11,7 @@ import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import Image from 'next/image';
 import { useStore } from '@/lib/store';
 import { deleteAccount } from '@/lib/db';
-import { Plus, Wallet, Banknote, CreditCard, Trash2, Pencil, Loader2 } from 'lucide-react';
+import { Plus, Wallet, Banknote, CreditCard, Trash2, Pencil, Loader2, Eye } from 'lucide-react';
 import { Account } from '@/types';
 export default function AccountsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -89,31 +89,37 @@ export default function AccountsPage() {
         {accounts.map((account) => (
           <Card key={account.id} className="cursor-pointer hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium" data-testid={`account-name-${account.name}`}>
-                {account.name} ({account.currency})
+              <CardTitle className="text-sm font-medium flex items-center gap-2" data-testid={`account-name-${account.name}`}>
+                {getIcon(account.type)} {account.name} ({account.currency})
               </CardTitle>
-              <div className="flex items-center gap-2">
-                <div className="text-muted-foreground">
-                  {getIcon(account.type)}
-                </div>
+              <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                  onClick={() => setEditConfirm({ isOpen: true, account })}
-                  data-testid={`edit-account-${account.name}`}
+                  className="h-6 w-6 text-green-500 hover:text-green-700 hover:bg-green-50"
+                  onClick={() => setHistoryModal({ isOpen: true, account })}
+                  data-testid={`view-history-account-${account.name}`}
                 >
-                  <Pencil className="h-4 w-4" />
+                  <Eye className="h-3 w-3" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="h-6 w-6 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                  onClick={() => setEditConfirm({ isOpen: true, account })}
+                  data-testid={`edit-account-${account.name}`}
+                >
+                  <Pencil className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
                   onClick={() => setDeleteConfirm({ isOpen: true, accountId: account.id })}
                   disabled={deletingIds.includes(account.id)}
                   data-testid={`delete-account-${account.name}`}
                 >
-                  {deletingIds.includes(account.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  {deletingIds.includes(account.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                 </Button>
               </div>
             </CardHeader>
@@ -256,7 +262,7 @@ export default function AccountsPage() {
                       endDate.setDate(startDate.getDate() + 6);
                       
                       const weekTotal = weekTransactions.reduce((sum, tx) => {
-                        const isIncoming = tx.accountId === historyModal.account!.id && tx.type !== 'EXPENSE';
+                        const isIncoming = tx.accountId === historyModal.account!.id && tx.type !== 'EXPENSE' && tx.type !== 'PAY_CREDIT_CARD';
                         return sum + (isIncoming ? tx.amount : -tx.amount);
                       }, 0);
 
@@ -273,7 +279,7 @@ export default function AccountsPage() {
                           
                           <div className="space-y-2">
                             {weekTransactions.map((tx) => {
-                              const isIncoming = tx.accountId === historyModal.account!.id && tx.type !== 'EXPENSE';
+                              const isIncoming = tx.accountId === historyModal.account!.id && tx.type !== 'EXPENSE' && tx.type !== 'PAY_CREDIT_CARD';
 
                               return (
                                 <div key={tx.id} className="p-3 border rounded-lg flex items-center justify-between hover:bg-accent/30 transition-colors">

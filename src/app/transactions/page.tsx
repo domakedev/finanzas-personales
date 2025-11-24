@@ -144,7 +144,7 @@ export default function TransactionsPage() {
   };
 
   const getAccountName = (id: string) => {
-    return accounts.find(a => a.id === id)?.name || 'Cuenta desconocida';
+    return accounts.find(a => a.id === id)?.name || debts.find(d => d.id === id)?.name || 'Cuenta desconocida';
   };
 
   const getDebtName = (id: string) => {

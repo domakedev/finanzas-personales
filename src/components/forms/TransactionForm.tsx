@@ -100,10 +100,25 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
   const validateBalanceAndAccounts = (data: TransactionFormData): string | null => {
     // Validate EXPENSE
     if (data.type === 'EXPENSE') {
-      const account = accounts.find(a => a.id === data.accountId);
-      if (!account) return "La cuenta seleccionada no existe";
-      if (account.balance < data.amount) {
-        return `¡Ups! No tienes suficiente saldo. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}. Puedes transferir fondos desde otra cuenta primero.`;
+      // Check if it's a credit card
+      const creditCard = debts.find(d => d.id === data.accountId && d.isCreditCard);
+      
+      if (creditCard) {
+        // Validate credit card has available credit
+        const creditLimit = creditCard.creditLimit || creditCard.totalAmount;
+        const usedCredit = creditCard.totalAmount - (creditCard.paidAmount || 0);
+        const availableCredit = creditLimit - usedCredit;
+        
+        if (data.amount > availableCredit) {
+          return `¡Ups! No tienes suficiente crédito disponible. Disponible: ${creditCard.currency === 'USD' ? '$' : 'S/'} ${availableCredit.toFixed(2)}`;
+        }
+      } else {
+        // Regular account validation
+        const account = accounts.find(a => a.id === data.accountId);
+        if (!account) return "La cuenta seleccionada no existe";
+        if (account.balance < data.amount) {
+          return `¡Ups! No tienes suficiente saldo. Disponible: ${account.currency === 'USD' ? '$' : 'S/'} ${account.balance.toFixed(2)}. Puedes transferir fondos desde otra cuenta primero.`;
+        }
       }
     }
 
@@ -291,7 +306,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
       // 1. If editing, REVERT original transaction effects
       if (transaction) {
         if (transaction.type === 'EXPENSE') {
-          addChange(transaction.accountId, transaction.amount);
+          // Check if the original expense was on a credit card
+          const wasOnCreditCard = debts.some(d => d.id === transaction.accountId && d.isCreditCard);
+          if (!wasOnCreditCard) {
+            addChange(transaction.accountId, transaction.amount);
+          }
         } else if (transaction.type === 'INCOME') {
           addChange(transaction.accountId, -transaction.amount);
         } else if (transaction.type === 'TRANSFER' && transaction.fromAccountId) {
@@ -310,7 +329,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
 
       // 2. Apply NEW transaction effects
       if (data.type === 'EXPENSE') {
-        addChange(data.accountId, -data.amount);
+        // Check if it's a credit card expense (don't deduct from account)
+        const isCreditCardExpense = debts.some(d => d.id === data.accountId && d.isCreditCard);
+        if (!isCreditCardExpense) {
+          addChange(data.accountId, -data.amount);
+        }
       } else if (data.type === 'INCOME') {
         addChange(data.accountId, data.amount);
       } else if (data.type === 'TRANSFER' && data.fromAccountId) {
@@ -342,7 +365,36 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
         await updateAccountInDB(accountId, { balance: newBalance });
       }
 
-      // 4. Update Debt if this is a debt payment
+      // 4. Update Credit Card Debt if this is a credit card expense
+      if (data.type === 'EXPENSE' && data.accountId) {
+        const creditCard = debts.find(d => d.id === data.accountId && d.isCreditCard);
+        
+        if (creditCard) {
+          let newTotalAmount = creditCard.totalAmount;
+
+          // If editing and previously was an expense on this same credit card, revert the old amount first
+          if (transaction && transaction.type === 'EXPENSE' && transaction.accountId === data.accountId) {
+            newTotalAmount = Math.max(0, Math.round((newTotalAmount - transaction.amount) * 100) / 100);
+          }
+
+          // Add the new expense amount to totalAmount (accumulate debt)
+          newTotalAmount = Math.round((newTotalAmount + data.amount) * 100) / 100;
+
+          // Update both store and DB
+          updateDebt(data.accountId, { totalAmount: newTotalAmount });
+          await updateDebtInDB(data.accountId, { totalAmount: newTotalAmount });
+        }
+      } else if (transaction && transaction.type === 'EXPENSE') {
+        // If editing and changing away from EXPENSE on a credit card, revert the credit card debt
+        const wasCreditCardExpense = debts.find(d => d.id === transaction.accountId && d.isCreditCard);
+        if (wasCreditCardExpense) {
+          const newTotalAmount = Math.max(0, Math.round((wasCreditCardExpense.totalAmount - transaction.amount) * 100) / 100);
+          updateDebt(transaction.accountId, { totalAmount: newTotalAmount });
+          await updateDebtInDB(transaction.accountId, { totalAmount: newTotalAmount });
+        }
+      }
+
+      // 5. Update Debt if this is a debt payment
       if (data.type === 'PAY_DEBT' && data.debtId) {
         const debt = debts.find(d => d.id === data.debtId && !d.isCreditCard);
         if (debt) {
@@ -755,6 +807,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onR
                 {acc.name} ({acc.currency}) - Disp: {acc.currency === 'USD' ? '$' : 'S/'} {acc.balance.toFixed(2)}
               </option>
             ))}
+            {transactionType === 'EXPENSE' && debts.filter(d => d.isCreditCard).map(cc => {
+              const creditLimit = cc.creditLimit || cc.totalAmount;
+              const usedCredit = cc.totalAmount - (cc.paidAmount || 0);
+              const availableCredit = creditLimit - usedCredit;
+              return (
+                <option key={cc.id} value={cc.id}>
+                  💳 {cc.name}{cc.lastFourDigits ? ` ****${cc.lastFourDigits}` : ''} ({cc.currency}) - Disponible: {cc.currency === 'USD' ? '$' : 'S/'} {availableCredit.toFixed(2)} (Tarjeta de Crédito)
+                </option>
+              );
+            })}
           </select>
           {errors.accountId && <p className="text-xs text-red-500">{errors.accountId.message}</p>}
         </div>

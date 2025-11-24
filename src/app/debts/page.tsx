@@ -11,8 +11,10 @@ import { CreditCardForm } from '@/components/forms/CreditCardForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { deleteDebt, getTransactions } from '@/lib/db';
-import { Plus, AlertCircle, Trash2, Pencil, Loader2 } from 'lucide-react';
-import { Debt } from '@/types';
+import { Plus, AlertCircle, Trash2, Pencil, Loader2, Eye, ArrowUpRight, ArrowDownLeft, Sprout, HandCoins, ArrowRightLeft, CreditCard, Banknote } from 'lucide-react';
+import { Debt, Transaction } from '@/types';
+import { format } from 'date-fns';
+import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
 
 export default function DebtsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,8 +30,13 @@ export default function DebtsPage() {
   });
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const [isCreditCardModalOpen, setIsCreditCardModalOpen] = useState(false);
+  const [isTransactionsModalOpen, setIsTransactionsModalOpen] = useState(false);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const debts = useStore((state) => state.debts);
   const transactions = useStore((state) => state.transactions);
+  const accounts = useStore((state) => state.accounts);
+  const categories = useStore((state) => state.categories);
+  const goals = useStore((state) => state.goals);
   const setDebts = useStore((state) => state.setDebts);
   const removeTransaction = useStore((state) => state.removeTransaction);
 
@@ -47,6 +54,33 @@ export default function DebtsPage() {
       alert(`Error al eliminar la deuda: ${error.message || "Error desconocido"}`);
     }
   };
+
+  const getAccountName = (id: string) => {
+    return accounts.find(a => a.id === id)?.name || debts.find(d => d.id === id)?.name || 'Cuenta desconocida';
+  };
+
+  const getDebtName = (id: string) => {
+    return debts.find(d => d.id === id)?.name || 'Deuda desconocida';
+  };
+
+  const getGoalName = (id: string) => {
+    return goals.find(g => g.id === id)?.name || 'Meta desconocida';
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'INCOME': return 'Ingreso';
+      case 'EXPENSE': return 'Gasto';
+      case 'TRANSFER': return 'Transferencia';
+      case 'PAY_DEBT': return 'Pago Deuda';
+      case 'PAY_CREDIT_CARD': return 'Pago Tarjeta Crédito';
+      case 'SAVE_FOR_GOAL': return 'Ahorro Meta';
+      case 'RECEIVE_DEBT_PAYMENT': return 'Cobro Préstamo';
+      default: return type;
+    }
+  };
+
+  const filteredTransactions = selectedCardId ? transactions.filter(tx => tx.debtId === selectedCardId || tx.accountId === selectedCardId) : [];
 
   return (
     <Layout>
@@ -148,12 +182,23 @@ export default function DebtsPage() {
                         </span>
                       )}
                     </CardTitle>
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                        className="h-6 w-6 text-green-500 hover:text-green-700 hover:bg-green-50"
+                        onClick={() => {
+                          setSelectedCardId(debt.id);
+                          setIsTransactionsModalOpen(true);
+                        }}
+                        data-testid={`view-history-credit-card-${debt.name}`}
+                      >
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                         onClick={() => {
                           if (debt.isCreditCard) {
                             setEditingDebt(debt);
@@ -164,17 +209,17 @@ export default function DebtsPage() {
                         }}
                         data-testid={`edit-credit-card-${debt.name}`}
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3 w-3" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
                         onClick={() => setDeleteConfirm({ isOpen: true, debtId: debt.id })}
                         disabled={deletingIds.includes(debt.id)}
                         data-testid={`delete-credit-card-${debt.name}`}
                       >
-                        {deletingIds.includes(debt.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        {deletingIds.includes(debt.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                       </Button>
                     </div>
                   </CardHeader>
@@ -394,6 +439,182 @@ export default function DebtsPage() {
           }}
           debt={editingDebt || undefined}
         />
+      </Modal>
+
+      <Modal
+        isOpen={isTransactionsModalOpen}
+        onClose={() => {
+          setIsTransactionsModalOpen(false);
+          setSelectedCardId(null);
+        }}
+        title={`Historial de ${selectedCardId ? getDebtName(selectedCardId) : 'Tarjeta'}`}
+      >
+        <div className="space-y-4">
+          {filteredTransactions.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No hay transacciones relacionadas.</p>
+          ) : (
+            filteredTransactions.map((tx) => {
+              const isExpenseOnCard = tx.accountId === selectedCardId && tx.type === 'EXPENSE';
+              const isPaymentOnCard = tx.debtId === selectedCardId && tx.type === 'PAY_CREDIT_CARD';
+
+              const getTransactionIcon = () => {
+                if (tx.type === 'TRANSFER') {
+                  return <ArrowRightLeft className="h-5 w-5" />;
+                }
+                if (tx.type === 'PAY_DEBT') {
+                  return <HandCoins className="h-5 w-5" />;
+                }
+                if (tx.type === 'PAY_CREDIT_CARD') {
+                  return <CreditCard className="h-5 w-5" />;
+                }
+                if (tx.type === 'SAVE_FOR_GOAL') {
+                  return <Sprout className="h-5 w-5" />;
+                }
+                if (tx.type === 'RECEIVE_DEBT_PAYMENT') {
+                  return (
+                    <div className="relative">
+                      <Banknote className="h-5 w-5" />
+                      <ArrowDownLeft className="h-3 w-3 absolute -bottom-1 -right-1 bg-white rounded-full text-green-600" />
+                    </div>
+                  );
+                }
+                return tx.type === 'INCOME' ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />;
+              };
+
+              const getTransactionColor = () => {
+                if (isExpenseOnCard) return 'bg-red-200/50 dark:bg-red-700/50 text-red-700 dark:text-red-300';
+                if (isPaymentOnCard) return 'bg-green-200/50 dark:bg-green-700/50 text-green-700 dark:text-green-300';
+                if (tx.type === 'TRANSFER') return 'bg-blue-200/50 dark:bg-blue-700/50 text-blue-700 dark:text-blue-300';
+                if (tx.type === 'PAY_DEBT') return 'bg-purple-200/50 dark:bg-purple-700/50 text-purple-700 dark:text-purple-300';
+                if (tx.type === 'SAVE_FOR_GOAL') return 'bg-green-800/50 dark:bg-green-600/50 text-green-900 dark:text-green-200';
+                if (tx.type === 'RECEIVE_DEBT_PAYMENT') return 'bg-emerald-200/50 dark:bg-emerald-700/50 text-emerald-700 dark:text-emerald-300';
+                if (tx.type === 'INCOME') return 'bg-green-200/50 dark:bg-green-700/50 text-green-700 dark:text-green-300';
+                return 'bg-red-200/50 dark:bg-red-700/50 text-red-700 dark:text-red-300';
+              };
+
+              const getBorderColor = () => {
+                if (isExpenseOnCard) return 'border-red-200 dark:border-red-700';
+                if (isPaymentOnCard) return 'border-green-200 dark:border-green-700';
+                return 'border-green-200 dark:border-green-700';
+              };
+
+              const getTypeLabelColor = () => {
+                if (isExpenseOnCard) return 'bg-red-600 dark:bg-red-500';
+                if (isPaymentOnCard) return 'bg-green-600 dark:bg-green-500';
+                return 'bg-green-600 dark:bg-green-500';
+              };
+
+              const getAmountColor = () => {
+                if (isExpenseOnCard) return 'text-red-800 dark:text-red-200';
+                if (isPaymentOnCard) return 'text-green-800 dark:text-green-200';
+                return 'text-green-800 dark:text-green-200';
+              };
+
+              const getSign = () => {
+                if (isExpenseOnCard) return '+';
+                if (isPaymentOnCard) return '-';
+                return tx.type === 'TRANSFER' ? '↔' : (tx.type === 'INCOME' || tx.type === 'RECEIVE_DEBT_PAYMENT') ? '+' : '-';
+              };
+
+              const getAccountInfo = () => {
+                if (tx.type === 'TRANSFER' && tx.fromAccountId) {
+                  const fromAcc = accounts.find(a => a.id === tx.fromAccountId);
+                  const toAcc = accounts.find(a => a.id === tx.accountId);
+                  return `${fromAcc?.name || '?'} → ${toAcc?.name || '?'}`;
+                }
+                return getAccountName(tx.accountId);
+              };
+
+              const getAmountDisplay = () => {
+                const account = accounts.find(a => a.id === tx.accountId);
+                const symbol = account?.currency === 'USD' ? '$' : 'S/';
+                
+                if (tx.type === 'TRANSFER' && tx.fromAccountId) {
+                    const fromAccount = accounts.find(a => a.id === tx.fromAccountId);
+                    const toAccount = accounts.find(a => a.id === tx.accountId);
+                    
+                    if (fromAccount && toAccount && fromAccount.currency !== toAccount.currency) {
+                        const fromSymbol = fromAccount.currency === 'USD' ? '$' : 'S/';
+                        const toSymbol = toAccount.currency === 'USD' ? '$' : 'S/';
+                        const converted = tx.convertedAmount || tx.amount;
+                        return (
+                          <span className="text-xs block text-right">
+                            {fromSymbol} {tx.amount.toFixed(2)} <br/>
+                            ↓ <br/>
+                            {toSymbol} {converted.toFixed(2)}
+                          </span>
+                        );
+                    }
+                }
+                
+                return `${symbol} ${tx.amount.toFixed(2)}`;
+              };
+
+              return (
+                <div key={tx.id} className={`relative overflow-hidden flex items-center justify-between p-4 border rounded-lg transition-colors ${getBorderColor()}`}>
+                  <div className={`absolute top-0 left-0 px-2 py-1 rounded-br-lg text-xs font-medium ${getTypeLabelColor()} text-white`}>
+                    {getTypeLabel(tx.type)}
+                  </div>
+
+                  <div className="flex items-center gap-4 flex-1 my-2">
+                    <div className={`p-2 rounded-full ${getTransactionColor()}`}>
+                      {getTransactionIcon()}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">{tx.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(tx.date), 'dd/MM/yyyy')} • {getAccountInfo()}
+                      </p>
+                      {tx.categoryId && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {(() => {
+                            const allCategories = [...TRANSACTION_CATEGORIES, ...INCOME_SOURCES, ...categories];
+                            const category = allCategories.find(c => c.id === tx.categoryId);
+                            return category ? (
+                              <span className="flex items-center gap-1">
+                                {category.icon} {category.name}
+                              </span>
+                            ) : (
+                              <span className="text-red-400 italic">Categoría eliminada</span>
+                            );
+                          })()}
+                        </p>
+                      )}
+                      {tx.type === 'PAY_DEBT' && tx.debtId && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Deuda: {getDebtName(tx.debtId)}
+                        </p>
+                      )}
+                      {tx.type === 'RECEIVE_DEBT_PAYMENT' && tx.debtId && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Préstamo: {getDebtName(tx.debtId)}
+                        </p>
+                      )}
+                      {tx.type === 'SAVE_FOR_GOAL' && tx.goalId && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Meta: {getGoalName(tx.goalId)}
+                        </p>
+                      )}
+                      {tx.type === 'TRANSFER' && tx.exchangeRate && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Tasa de cambio: {tx.exchangeRate}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className={`font-bold text-right ${getAmountColor()}`}>
+                      <div className="flex items-center gap-1">
+                        <span>{getSign()}</span>
+                        {getAmountDisplay()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </Modal>
 
       <ConfirmDialog

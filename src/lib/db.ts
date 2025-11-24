@@ -217,6 +217,33 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
           // Continue without updating goal
         }
       }
+    } else if (type === 'RECEIVE_DEBT_PAYMENT') {
+      // Revert account balance (subtract the payment received)
+      if (accountId) {
+        const accountRef = doc(db, 'accounts', accountId);
+        const accountDoc = await getDoc(accountRef);
+        if (accountDoc.exists()) {
+          const currentBalance = Number(accountDoc.data().balance) || 0;
+          const newBalance = currentBalance - amount;
+          updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
+        }
+      }
+
+      // Revert debt paidAmount (subtract the payment) - only if debt exists
+      if (debtId) {
+        try {
+          const debtRef = doc(db, 'debts', debtId);
+          const debtDoc = await getDoc(debtRef);
+          if (debtDoc.exists()) {
+            const currentPaidAmount = Number(debtDoc.data().paidAmount) || 0;
+            const newPaidAmount = Math.max(0, Math.round((currentPaidAmount - amount) * 100) / 100);
+            updatePromises.push(updateDoc(debtRef, { paidAmount: newPaidAmount }));
+          }
+        } catch (error) {
+          console.error("Error preparing debt update:", error);
+          // Continue without updating debt
+        }
+      }
     }
 
     // 3. Execute all balance updates
