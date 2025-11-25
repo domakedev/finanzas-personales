@@ -39,6 +39,25 @@ export default function TransactionsPage() {
     RECEIVE_DEBT_PAYMENT: 'bg-emerald-600 dark:bg-emerald-500 text-white',
   };
 
+  // Colores para botones de filtro
+  const FILTER_BUTTON_COLORS = {
+    ALL: 'bg-gray-600 dark:bg-gray-500 text-white',
+    INCOME: 'bg-green-600 dark:bg-green-500 text-white hover:bg-green-700 dark:hover:bg-green-600',
+    EXPENSE: 'bg-red-600 dark:bg-red-500 text-white hover:bg-red-700 dark:hover:bg-red-600',
+    TRANSFER: 'bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600',
+    PAY_DEBT: 'bg-purple-600 dark:bg-purple-500 text-white hover:bg-purple-700 dark:hover:bg-purple-600',
+    PAY_CREDIT_CARD: 'bg-orange-600 dark:bg-orange-500 text-white hover:bg-orange-700 dark:hover:bg-orange-600',
+    SAVE_FOR_GOAL: 'bg-green-800 dark:bg-green-600 text-white hover:bg-green-900 dark:hover:bg-green-700',
+    RECEIVE_DEBT_PAYMENT: 'bg-emerald-600 dark:bg-emerald-500 text-white hover:bg-emerald-700 dark:hover:bg-emerald-600',
+  };
+
+  const getFilterButtonClass = (type: string) => {
+    if (filterType === type) {
+      return FILTER_BUTTON_COLORS[type as keyof typeof FILTER_BUTTON_COLORS] || FILTER_BUTTON_COLORS.ALL;
+    }
+    return 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700';
+  };
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; transactionId: string | null }>({
@@ -50,6 +69,9 @@ export default function TransactionsPage() {
     transaction: null,
   });
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
+  const [filterType, setFilterType] = useState<string>('ALL');
+  const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
+  const [selectedYear, setSelectedYear] = useState<string>('ALL');
   const { user: authUser } = useAuth();
   const user = useStore((state) => state.user) || authUser;
   const transactions = useStore((state) => state.transactions);
@@ -168,6 +190,27 @@ export default function TransactionsPage() {
     }
   };
 
+  const monthLabels = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+  const availableYears = ['ALL', ...[...new Set(transactions.map(tx => tx.date.getFullYear().toString()))].sort()];
+
+  const availableMonths = ['ALL'];
+  if (selectedYear === 'ALL') {
+    const monthsSet = new Set(transactions.map(tx => tx.date.getMonth().toString()));
+    availableMonths.push(...Array.from(monthsSet).sort((a, b) => parseInt(a) - parseInt(b)));
+  } else {
+    const yearNum = parseInt(selectedYear);
+    const monthsSet = new Set(transactions.filter(tx => tx.date.getFullYear() === yearNum).map(tx => tx.date.getMonth().toString()));
+    availableMonths.push(...Array.from(monthsSet).sort((a, b) => parseInt(a) - parseInt(b)));
+  }
+
+  const filteredTransactions = transactions.filter(tx => {
+    const matchesType = filterType === 'ALL' || tx.type === filterType;
+    const matchesMonth = selectedMonth === 'ALL' || tx.date.getMonth() === parseInt(selectedMonth);
+    const matchesYear = selectedYear === 'ALL' || tx.date.getFullYear() === parseInt(selectedYear);
+    return matchesType && matchesMonth && matchesYear;
+  });
+
   return (
     <Layout>
       <div className="flex items-center justify-between mb-6">
@@ -180,16 +223,59 @@ export default function TransactionsPage() {
         </Button>
       </div>
 
+      <div className="mb-4">
+        <div className="flex flex-wrap justify-between">
+          <div className="flex flex-wrap items-end gap-2">
+            <Button className={getFilterButtonClass('ALL')} onClick={() => setFilterType('ALL')}>Todos</Button>
+            <Button className={getFilterButtonClass('INCOME')} onClick={() => setFilterType('INCOME')}>Ingresos</Button>
+            <Button className={getFilterButtonClass('EXPENSE')} onClick={() => setFilterType('EXPENSE')}>Gastos</Button>
+            <Button className={getFilterButtonClass('TRANSFER')} onClick={() => setFilterType('TRANSFER')}>Transferencias</Button>
+            <Button className={getFilterButtonClass('PAY_DEBT')} onClick={() => setFilterType('PAY_DEBT')}>Pago Deudas</Button>
+            <Button className={getFilterButtonClass('PAY_CREDIT_CARD')} onClick={() => setFilterType('PAY_CREDIT_CARD')}>Pago TC</Button>
+            <Button className={getFilterButtonClass('SAVE_FOR_GOAL')} onClick={() => setFilterType('SAVE_FOR_GOAL')}>Ahorro Meta</Button>
+            <Button className={getFilterButtonClass('RECEIVE_DEBT_PAYMENT')} onClick={() => setFilterType('RECEIVE_DEBT_PAYMENT')}>Cobro Préstamo</Button>
+          </div>
+          <div className="flex gap-2">
+            <div className="">
+              <label className="block text-sm font-medium mb-1">Mes</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              >
+                {availableMonths.map(m => (
+                  <option key={m} value={m}>{m === 'ALL' ? 'Todos' : monthLabels[parseInt(m)]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Año</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              >
+                {availableYears.map(y => (
+                  <option key={y} value={y}>{y === 'ALL' ? 'Todos' : y}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Historial Reciente</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {transactions.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No hay transacciones registradas.</p>
+            {filteredTransactions.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                {filterType === 'ALL' ? 'No hay transacciones registradas.' : 'No hay transacciones de este tipo.'}
+              </p>
             ) : (
-              transactions.map((tx) => {
+              filteredTransactions.map((tx) => {
                 const getTransactionIcon = () => {
                   if (tx.type === 'TRANSFER') {
                     return <ArrowRightLeft className="h-5 w-5" />;

@@ -168,7 +168,7 @@ export default function Dashboard() {
             title="Flujo de Caja"
             amount={`S/ ${cashFlow.toFixed(2)}`}
             icon={cashFlow >= 0 ? TrendingUp : TrendingDown}
-            subtitle={`Ingresos - Gastos (${monthNameCapitalized})`}
+            subtitle={`Ingresos: S/ ${incomeMonth.toFixed(2)} | Gastos: S/ ${expenseMonth.toFixed(2)}`}
             colorScheme={cashFlow >= 0 ? 'success' : 'danger'}
           />
           
