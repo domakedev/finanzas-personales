@@ -61,11 +61,11 @@ export default function Dashboard() {
   const monthNameCapitalized = monthName.charAt(0).toUpperCase() + monthName.slice(1);
   
   const incomeMonth = transactions
-    .filter(t => t.type === 'INCOME' && t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear)
+    .filter(t => (t.type === 'INCOME' || t.type === 'RECEIVE_DEBT_PAYMENT') && t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear)
     .reduce((sum, t) => sum + t.amount, 0);
-    
+
   const expenseMonth = transactions
-    .filter(t => t.type === 'EXPENSE' && t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear)
+    .filter(t => (t.type === 'EXPENSE' || t.type === 'PAY_CREDIT_CARD' || t.type === 'PAY_DEBT' || t.type === 'SAVE_FOR_GOAL') && t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear)
     .reduce((sum, t) => sum + t.amount, 0);
   
   const cashFlow = incomeMonth - expenseMonth;
