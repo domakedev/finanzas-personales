@@ -17,6 +17,7 @@ import { TransactionForm } from '@/components/forms/TransactionForm';
 import { AccountForm } from '@/components/forms/AccountForm';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
+import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
 
 export default function Dashboard() {
    const { user } = useAuth();
@@ -104,26 +105,38 @@ export default function Dashboard() {
   
   const nextPayment = getNextPaymentInfo();
   
-  // Category spending (for current budget)
-  const categorySpending = currentBudget ? Object.entries(currentBudget.categoryLimits).map(([categoryId, limit]) => {
-    const category = categories.find(c => c.id === categoryId);
-    const spent = transactions
-      .filter(t => 
-        t.type === 'EXPENSE' && 
-        t.categoryId === categoryId &&
+  // Category spending
+  const categorySpending = (() => {
+    // Get all categories that have spending in current month
+    const categoriesWithSpending = new Map<string, number>();
+
+    transactions
+      .filter(t =>
+        t.type === 'EXPENSE' &&
         t.date.getMonth() === currentMonth &&
-        t.date.getFullYear() === currentYear
+        t.date.getFullYear() === currentYear &&
+        t.categoryId
       )
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    return {
-      categoryId,
-      categoryName: category?.name || 'Sin categoría',
-      categoryIcon: category?.icon || '📦',
-      spent,
-      limit
-    };
-  }).filter(c => c.limit > 0).sort((a, b) => (b.spent / b.limit) - (a.spent / a.limit)) : [];
+      .forEach(t => {
+        const current = categoriesWithSpending.get(t.categoryId!) || 0;
+        categoriesWithSpending.set(t.categoryId!, current + t.amount);
+      });
+
+    // Convert to array with category info
+    return Array.from(categoriesWithSpending.entries()).map(([categoryId, spent]) => {
+      const category = categories.find(c => c.id === categoryId) ||
+                      [...TRANSACTION_CATEGORIES, ...INCOME_SOURCES].find(c => c.id === categoryId);
+
+      return {
+        categoryId,
+        categoryName: category?.name || 'Sin categoría',
+        categoryIcon: category?.icon || '📦',
+        spent
+      };
+    }).filter(c => c.spent > 0).sort((a, b) => b.spent - a.spent);
+  })();
+
+  const totalExpenses = categorySpending.reduce((sum, cat) => sum + cat.spent, 0);
 
   return (
     <Layout>
@@ -282,18 +295,18 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {categorySpending.slice(0, 5).map((cat) => (
+                {categorySpending.slice(0, 10).map((cat) => (
                   <CategorySpendingBar
                     key={cat.categoryId}
                     categoryName={cat.categoryName}
                     categoryIcon={cat.categoryIcon}
                     spent={cat.spent}
-                    limit={cat.limit}
+                    total={totalExpenses}
                   />
                 ))}
-                {categorySpending.length > 5 && (
+                {categorySpending.length > 10 && (
                   <p className="text-sm text-muted-foreground text-center pt-2">
-                    +{categorySpending.length - 5} categorías más
+                    +{categorySpending.length - 10} categorías más
                   </p>
                 )}
               </div>
