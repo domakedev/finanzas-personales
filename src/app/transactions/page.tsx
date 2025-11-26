@@ -166,7 +166,13 @@ export default function TransactionsPage() {
   };
 
   const getAccountName = (id: string) => {
-    return accounts.find(a => a.id === id)?.name || debts.find(d => d.id === id)?.name || 'Cuenta desconocida';
+    const account = accounts.find(a => a.id === id);
+    if (account) return account.name;
+    const debt = debts.find(d => d.id === id);
+    if (debt) {
+      return debt.isCreditCard ? `${debt.name} (Tarjeta de Crédito)` : debt.name;
+    }
+    return 'Cuenta desconocida';
   };
 
   const getDebtName = (id: string) => {

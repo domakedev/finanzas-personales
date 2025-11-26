@@ -262,7 +262,7 @@ export default function AccountsPage() {
                       endDate.setDate(startDate.getDate() + 6);
                       
                       const weekTotal = weekTransactions.reduce((sum, tx) => {
-                        const isIncoming = tx.accountId === historyModal.account!.id && tx.type !== 'EXPENSE' && tx.type !== 'PAY_CREDIT_CARD';
+                        const isIncoming = tx.type === 'TRANSFER' ? tx.accountId === historyModal.account!.id : (tx.type === 'INCOME' || tx.type === 'RECEIVE_DEBT_PAYMENT');
                         return sum + (isIncoming ? tx.amount : -tx.amount);
                       }, 0);
 
@@ -279,7 +279,7 @@ export default function AccountsPage() {
                           
                           <div className="space-y-2">
                             {weekTransactions.map((tx) => {
-                              const isIncoming = tx.accountId === historyModal.account!.id && tx.type !== 'EXPENSE' && tx.type !== 'PAY_CREDIT_CARD';
+                              const isIncoming = tx.type === 'TRANSFER' ? tx.accountId === historyModal.account!.id : (tx.type === 'INCOME' || tx.type === 'RECEIVE_DEBT_PAYMENT');
 
                               return (
                                 <div key={tx.id} className="p-3 border rounded-lg flex items-center justify-between hover:bg-accent/30 transition-colors">
