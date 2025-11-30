@@ -563,7 +563,7 @@ export default function DebtsPage() {
                     <div className="flex-1">
                       <p className="font-medium">{tx.description}</p>
                       <p className="text-sm text-muted-foreground">
-                        {format(new Date(tx.date), 'dd/MM/yyyy')} • {getAccountInfo()}
+                        {format(new Date(tx.createdAt), 'dd/MM/yyyy')} • {getAccountInfo()}
                       </p>
                       {tx.categoryId && (
                         <p className="text-xs text-muted-foreground mt-1">

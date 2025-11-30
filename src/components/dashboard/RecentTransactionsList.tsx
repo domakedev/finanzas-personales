@@ -65,7 +65,7 @@ export function RecentTransactionsList({ transactions, categories }: RecentTrans
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{tx.description}</p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{tx.date.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}</span>
+                  <span>{tx.createdAt.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}</span>
                   {category && (
                     <>
                       <span>•</span>

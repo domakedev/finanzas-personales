@@ -241,7 +241,7 @@ export default function AccountsPage() {
               // Agrupar por semana
               const groupedByWeek: { [key: string]: typeof accountTransactions } = {};
               accountTransactions.forEach(tx => {
-                const txDate = new Date(tx.date);
+                const txDate = new Date(tx.createdAt);
                 const startOfWeek = new Date(txDate);
                 startOfWeek.setDate(txDate.getDate() - txDate.getDay()); // Domingo de esa semana
                 const weekKey = startOfWeek.toISOString().split('T')[0];
@@ -286,7 +286,7 @@ export default function AccountsPage() {
                                   <div className="flex-1">
                                     <p className="font-medium">{tx.description}</p>
                                     <p className="text-xs text-muted-foreground">
-                                      {new Date(tx.date).toLocaleDateString('es-PE')} • {
+                                      {new Date(tx.createdAt).toLocaleDateString('es-PE')} • {
                                         tx.type === 'INCOME' ? '💰 Ingreso' :
                                         tx.type === 'EXPENSE' ? '💸 Gasto' :
                                         tx.type === 'TRANSFER' ? '🔄 Transferencia' :

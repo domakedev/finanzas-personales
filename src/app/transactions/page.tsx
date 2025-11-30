@@ -198,22 +198,22 @@ export default function TransactionsPage() {
 
   const monthLabels = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-  const availableYears = ['ALL', ...[...new Set(transactions.map(tx => tx.date.getFullYear().toString()))].sort()];
+  const availableYears = ['ALL', ...[...new Set(transactions.map(tx => tx.createdAt.getFullYear().toString()))].sort()];
 
   const availableMonths = ['ALL'];
   if (selectedYear === 'ALL') {
-    const monthsSet = new Set(transactions.map(tx => tx.date.getMonth().toString()));
+    const monthsSet = new Set(transactions.map(tx => tx.createdAt.getMonth().toString()));
     availableMonths.push(...Array.from(monthsSet).sort((a, b) => parseInt(a) - parseInt(b)));
   } else {
     const yearNum = parseInt(selectedYear);
-    const monthsSet = new Set(transactions.filter(tx => tx.date.getFullYear() === yearNum).map(tx => tx.date.getMonth().toString()));
+    const monthsSet = new Set(transactions.filter(tx => tx.createdAt.getFullYear() === yearNum).map(tx => tx.createdAt.getMonth().toString()));
     availableMonths.push(...Array.from(monthsSet).sort((a, b) => parseInt(a) - parseInt(b)));
   }
 
   const filteredTransactions = transactions.filter(tx => {
     const matchesType = filterType === 'ALL' || tx.type === filterType;
-    const matchesMonth = selectedMonth === 'ALL' || tx.date.getMonth() === parseInt(selectedMonth);
-    const matchesYear = selectedYear === 'ALL' || tx.date.getFullYear() === parseInt(selectedYear);
+    const matchesMonth = selectedMonth === 'ALL' || tx.createdAt.getMonth() === parseInt(selectedMonth);
+    const matchesYear = selectedYear === 'ALL' || tx.createdAt.getFullYear() === parseInt(selectedYear);
     return matchesType && matchesMonth && matchesYear;
   });
 
@@ -364,7 +364,7 @@ export default function TransactionsPage() {
                       <div className="flex-1">
                         <p className="font-medium">{tx.description}</p>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(tx.date), 'dd/MM/yyyy')} • {getAccountInfo()}
+                          {format(new Date(tx.createdAt), 'dd/MM/yyyy')} • {getAccountInfo()}
                         </p>
                         {tx.categoryId && (
                           <p className="text-xs text-muted-foreground mt-1">
