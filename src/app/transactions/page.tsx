@@ -84,6 +84,8 @@ export default function TransactionsPage() {
   const updateDebtInStore = useStore((state) => state.updateDebt);
   const updateGoalInStore = useStore((state) => state.updateGoal);
 
+  console.log("🚀 ~ TransactionsPage ~ transactions:", transactions)
+
   const handleDelete = async (transactionId: string) => {
     const transaction = transactions.find(t => t.id === transactionId);
     if (!transaction) return;
@@ -198,15 +200,15 @@ export default function TransactionsPage() {
 
   const monthLabels = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-  const availableYears = ['ALL', ...[...new Set(transactions.map(tx => tx.createdAt.getFullYear().toString()))].sort()];
+  const availableYears = ['ALL', ...[...new Set(transactions.map(tx => tx.date.getFullYear().toString()))].sort()];
 
   const availableMonths = ['ALL'];
   if (selectedYear === 'ALL') {
-    const monthsSet = new Set(transactions.map(tx => tx.createdAt.getMonth().toString()));
+    const monthsSet = new Set(transactions.map(tx => tx.date.getMonth().toString()));
     availableMonths.push(...Array.from(monthsSet).sort((a, b) => parseInt(a) - parseInt(b)));
   } else {
     const yearNum = parseInt(selectedYear);
-    const monthsSet = new Set(transactions.filter(tx => tx.createdAt.getFullYear() === yearNum).map(tx => tx.createdAt.getMonth().toString()));
+    const monthsSet = new Set(transactions.filter(tx => tx.date.getFullYear() === yearNum).map(tx => tx.date.getMonth().toString()));
     availableMonths.push(...Array.from(monthsSet).sort((a, b) => parseInt(a) - parseInt(b)));
   }
 
@@ -364,7 +366,7 @@ export default function TransactionsPage() {
                       <div className="flex-1">
                         <p className="font-medium">{tx.description}</p>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(tx.createdAt), 'dd/MM/yyyy')} • {getAccountInfo()}
+                          {format(new Date(tx?.createdAt || tx.date), 'dd/MM/yyyy')} • {getAccountInfo()}
                         </p>
                         {tx.categoryId && (
                           <p className="text-xs text-muted-foreground mt-1">
