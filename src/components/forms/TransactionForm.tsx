@@ -708,6 +708,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         const transactionWithRealId = {
           ...newTransaction,
           id: docRef.id, // Use Firebase's generated ID
+          createdAt: new Date(), // Set createdAt for store consistency
         } as Transaction;
 
         // Add to store with the correct ID
