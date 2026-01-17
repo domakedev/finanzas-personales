@@ -85,8 +85,8 @@ export function RecentTransactionsList({
                 <p className="font-medium truncate">{tx.description}</p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>
-                    {tx.createdAt
-                      ? tx.createdAt.toLocaleDateString("es-PE", {
+                    {tx.date
+                      ? tx.date.toLocaleDateString("es-PE", {
                           day: "numeric",
                           month: "short",
                         })

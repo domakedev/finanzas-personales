@@ -34,6 +34,8 @@ export default function AccountsPage() {
   const accounts = useStore((state) => state.accounts);
   console.log(accounts);
   const transactions = useStore((state) => state.transactions);
+  console.log("🚀 ~ AccountsPage ~ transactions:", transactions)
+
   const debts = useStore((state) => state.debts);
   const removeAccount = useStore((state) => state.removeAccount);
 
@@ -286,7 +288,7 @@ export default function AccountsPage() {
                                   <div className="flex-1">
                                     <p className="font-medium">{tx.description}</p>
                                     <p className="text-xs text-muted-foreground">
-                                      {new Date(tx.createdAt).toLocaleDateString('es-PE')} • {
+                                      {new Date(tx.date).toLocaleDateString('es-PE')} • {
                                         tx.type === 'INCOME' ? '💰 Ingreso' :
                                         tx.type === 'EXPENSE' ? '💸 Gasto' :
                                         tx.type === 'TRANSFER' ? '🔄 Transferencia' :
