@@ -86,6 +86,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const toAccountId = watch("accountId");
   const debtId = watch("debtId");
   const goalId = watch("goalId");
+  const dateWatch = watch("date")
   const amount = watch("amount") as number;
   const exchangeRate = watch("exchangeRate") as number;
 
@@ -321,7 +322,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     accounts.forEach((acc) => oldBalances.set(acc.id, acc.balance));
 
     try {
-      const formData = transaction ? data : { ...data, date: new Date() };
+      // const formData = transaction ? data : { ...data, date: new Date() };
+      const formData = transaction ? data : typeof dateWatch === "string" ? { ...data, date: new Date(dateWatch + "T00:00:00") } : { ...data, date: new Date() };
       console.log("Date to be saved:", formData.date);
       const newTransaction: Partial<Transaction> = {
         ...formData,
