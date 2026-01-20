@@ -6,9 +6,9 @@ import { QuickStatsCard } from '@/components/dashboard/QuickStatsCard';
 import { RecentTransactionsList } from '@/components/dashboard/RecentTransactionsList';
 import { CategorySpendingBar } from '@/components/dashboard/CategorySpendingBar';
 import { SavingsTree } from '@/components/SavingsTree';
-import { 
-  Wallet, CreditCard, TrendingUp, TrendingDown, DollarSign, 
-  PiggyBank, AlertCircle, Target, Calendar 
+import {
+  Wallet, CreditCard, TrendingUp, TrendingDown, DollarSign,
+  PiggyBank, AlertCircle, Target, Calendar
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -20,23 +20,23 @@ import { useAuth } from '@/lib/auth';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
 
 export default function Dashboard() {
-   const { user } = useAuth();
-   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const { user } = useAuth();
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
-   const {
-     accounts,
-     transactions,
-     debts,
-     goals,
-     currentBudget,
-     categories
-   } = useStore();
+  const {
+    accounts,
+    transactions,
+    debts,
+    goals,
+    currentBudget,
+    categories
+  } = useStore();
 
   // Calculate total balances
   const totalBalancePEN = accounts.filter(a => a.currency === 'PEN').reduce((sum, acc) => sum + acc.balance, 0);
   const totalBalanceUSD = accounts.filter(a => a.currency === 'USD').reduce((sum, acc) => sum + acc.balance, 0);
-  
+
   // Calculate total debts (excluding lent money)
   const totalDebtPEN = debts
     .filter(debt => !debt.isCreditCard && !debt.isLent && debt.currency === 'PEN')
@@ -47,19 +47,19 @@ export default function Dashboard() {
   const totalCreditCardDebtUSD = debts
     .filter(debt => debt.isCreditCard && debt.currency === 'USD')
     .reduce((sum, debt) => sum + (debt.totalAmount - (debt.paidAmount || 0)), 0);
-  
+
   const totalAllDebtPEN = totalDebtPEN + totalCreditCardDebtPEN;
-  
+
   // Net Worth calculation
   const netWorthPEN = totalBalancePEN - totalAllDebtPEN;
   const netWorthUSD = totalBalanceUSD - totalCreditCardDebtUSD;
-  
+
   // Current month calculations
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
   const monthName = new Date().toLocaleDateString('es-PE', { month: 'long' });
   const monthNameCapitalized = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-  
+
   const incomeMonth = transactions
     .filter(t => (t.type === 'INCOME' || t.type === 'RECEIVE_DEBT_PAYMENT') && t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear)
     .reduce((sum, t) => sum + t.amount, 0);
@@ -67,44 +67,53 @@ export default function Dashboard() {
   const expenseMonth = transactions
     .filter(t => (t.type === 'EXPENSE' || t.type === 'PAY_CREDIT_CARD' || t.type === 'PAY_DEBT' || t.type === 'SAVE_FOR_GOAL') && t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear)
     .reduce((sum, t) => sum + t.amount, 0);
-  
+
   const cashFlow = incomeMonth - expenseMonth;
   const savingsRate = incomeMonth > 0 ? ((incomeMonth - expenseMonth) / incomeMonth) * 100 : 0;
-  
+
   // Budget health
-  const budgetHealth = currentBudget && currentBudget.totalIncome > 0
-    ? (expenseMonth / currentBudget.totalIncome) * 100
-    : null;
-  
+  const budgetHealth = (() => {
+    if (!currentBudget || Object.keys(currentBudget.categoryLimits).length === 0) return null;
+
+    const budgetedCategories = Object.keys(currentBudget.categoryLimits);
+    const budgetedExpenses = transactions
+      .filter(t => t.type === 'EXPENSE' && t.categoryId && budgetedCategories.includes(t.categoryId) && t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalBudgeted = Object.values(currentBudget.categoryLimits).reduce((sum, limit) => sum + limit, 0);
+
+    return totalBudgeted > 0 ? (budgetedExpenses / totalBudgeted) * 100 : null;
+  })();
+
   // Credit card payment proximity
   const creditCards = debts.filter(d => d.isCreditCard && d.paymentDate);
   const getNextPaymentInfo = () => {
     if (creditCards.length === 0) return null;
-    
+
     const today = new Date();
     const nextPayments = creditCards.map(card => {
       const paymentDay = card.paymentDate!;
       let paymentDate = new Date(today.getFullYear(), today.getMonth(), paymentDay);
-      
+
       if (paymentDate < today) {
         paymentDate = new Date(today.getFullYear(), today.getMonth() + 1, paymentDay);
       }
-      
+
       const daysUntil = Math.ceil((paymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       return {
         card: card.name,
         daysUntil,
         date: paymentDate
       };
     });
-    
+
     nextPayments.sort((a, b) => a.daysUntil - b.daysUntil);
     return nextPayments[0];
   };
-  
+
   const nextPayment = getNextPaymentInfo();
-  
+
   // Category spending
   const categorySpending = (() => {
     // Get all categories that have spending in current month
@@ -125,7 +134,7 @@ export default function Dashboard() {
     // Convert to array with category info
     return Array.from(categoriesWithSpending.entries()).map(([categoryId, spent]) => {
       const category = categories.find(c => c.id === categoryId) ||
-                      [...TRANSACTION_CATEGORIES, ...INCOME_SOURCES].find(c => c.id === categoryId);
+        [...TRANSACTION_CATEGORIES, ...INCOME_SOURCES].find(c => c.id === categoryId);
 
       return {
         categoryId,
@@ -156,14 +165,12 @@ export default function Dashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <QuickStatsCard
             title="Patrimonio Neto"
-            amount={netWorthUSD > 0 
-              ? `S/ ${netWorthPEN.toFixed(2)} + $ ${netWorthUSD.toFixed(2)}`
-              : `S/ ${netWorthPEN.toFixed(2)}`}
+            amount={`S/ ${netWorthPEN.toFixed(2)}`}
             icon={Wallet}
-            subtitle="Balance - Deudas"
+            subtitle={netWorthUSD !== 0 ? `USD: $ ${netWorthUSD.toFixed(2)} | Neto: Activos - Pasivos` : "Neto: Activos - Pasivos"}
             colorScheme={netWorthPEN >= 0 ? 'success' : 'danger'}
           />
-          
+
           <QuickStatsCard
             title="Flujo de Caja"
             amount={`S/ ${cashFlow.toFixed(2)}`}
@@ -171,7 +178,7 @@ export default function Dashboard() {
             subtitle={`Ingresos: S/ ${incomeMonth.toFixed(2)} | Gastos: S/ ${expenseMonth.toFixed(2)}`}
             colorScheme={cashFlow >= 0 ? 'success' : 'danger'}
           />
-          
+
           {budgetHealth !== null ? (
             <QuickStatsCard
               title="Salud de Presupuesto"
@@ -188,7 +195,7 @@ export default function Dashboard() {
               subtitle="Sin presupuesto activo"
             />
           )}
-          
+
           {nextPayment ? (
             <QuickStatsCard
               title="Próximo Pago TC"
@@ -196,9 +203,9 @@ export default function Dashboard() {
               icon={Calendar}
               subtitle={nextPayment.card}
               colorScheme={
-                nextPayment.daysUntil <= 3 ? 'danger' : 
-                nextPayment.daysUntil <= 7 ? 'warning' : 
-                'success'
+                nextPayment.daysUntil <= 3 ? 'danger' :
+                  nextPayment.daysUntil <= 7 ? 'warning' :
+                    'success'
               }
             />
           ) : (
@@ -220,7 +227,7 @@ export default function Dashboard() {
               <CardTitle>Tus Últimos Movimientos</CardTitle>
             </CardHeader>
             <CardContent>
-              <RecentTransactionsList 
+              <RecentTransactionsList
                 transactions={transactions}
                 categories={categories}
               />
@@ -249,8 +256,8 @@ export default function Dashboard() {
                       S/ {goals[0].currentAmount.toFixed(2)} / S/ {goals[0].targetAmount.toFixed(2)}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {goals[0].currentAmount >= goals[0].targetAmount 
-                        ? '🎉 ¡Meta alcanzada!' 
+                      {goals[0].currentAmount >= goals[0].targetAmount
+                        ? '🎉 ¡Meta alcanzada!'
                         : `Faltan S/ ${(goals[0].targetAmount - goals[0].currentAmount).toFixed(2)}`
                       }
                     </p>
@@ -349,13 +356,13 @@ export default function Dashboard() {
       </div>
 
       {/* Modals */}
-      <Modal 
-        isOpen={isTransactionModalOpen} 
+      <Modal
+        isOpen={isTransactionModalOpen}
         onClose={() => setIsTransactionModalOpen(false)}
         title="Agregar Transacción"
       >
-        <TransactionForm 
-          onSuccess={() => setIsTransactionModalOpen(false)} 
+        <TransactionForm
+          onSuccess={() => setIsTransactionModalOpen(false)}
           onRequestCreateAccount={() => {
             setIsTransactionModalOpen(false);
             setIsAccountModalOpen(true);
@@ -363,8 +370,8 @@ export default function Dashboard() {
         />
       </Modal>
 
-      <Modal 
-        isOpen={isAccountModalOpen} 
+      <Modal
+        isOpen={isAccountModalOpen}
         onClose={() => setIsAccountModalOpen(false)}
         title="Nueva Cuenta"
       >

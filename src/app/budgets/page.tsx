@@ -23,7 +23,7 @@ export default function BudgetsPage() {
     isOpen: false,
     categoryId: null,
   });
-  
+
   // Form state
   const [income, setIncome] = useState<string>('');
   const [limits, setLimits] = useState<Record<string, string>>({});
@@ -56,16 +56,16 @@ export default function BudgetsPage() {
       const budgetData: Omit<Budget, 'id' | 'userId'> = {
         month: currentMonth,
         year: currentYear,
-        totalIncome: parseFloat(income) || 0,
+        totalIncome: parseFloat(income) || currentBudget?.totalIncome || 0,
         categoryLimits: limitsNum
       };
 
       await saveBudget(user.uid, budgetData);
-      
+
       // Reload to get the ID if it was new and update store
       const updatedBudget = await getBudget(user.uid, currentMonth, currentYear);
       setCurrentBudget(updatedBudget);
-      
+
     } catch (error) {
       console.error("Error saving budget:", error);
     } finally {
@@ -91,10 +91,10 @@ export default function BudgetsPage() {
     return transactions
       .filter(t => {
         const d = new Date(t.date);
-        return t.categoryId === categoryId && 
-               t.type === 'EXPENSE' &&
-               d.getMonth() === currentMonth && 
-               d.getFullYear() === currentYear;
+        return t.categoryId === categoryId &&
+          t.type === 'EXPENSE' &&
+          d.getMonth() === currentMonth &&
+          d.getFullYear() === currentYear;
       })
       .reduce((acc, curr) => acc + curr.amount, 0);
   };
@@ -102,13 +102,35 @@ export default function BudgetsPage() {
   const monthlyTransactions = transactions.filter(t => {
     const d = new Date(t.date);
     return t.type === 'EXPENSE' &&
-           d.getMonth() === currentMonth && 
-           d.getFullYear() === currentYear;
+      d.getMonth() === currentMonth &&
+      d.getFullYear() === currentYear;
   });
 
   const totalSpent = monthlyTransactions.reduce((acc, curr) => acc + curr.amount, 0);
+
+  // Calculate historical average income from last 6 months
+  const calculateHistoricalIncomeAverage = () => {
+    const now = new Date();
+    const months = [];
+    for (let i = 0; i < 6; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ month: date.getMonth(), year: date.getFullYear() });
+    }
+
+    const monthlyIncomes = months.map(({ month, year }) => {
+      return transactions
+        .filter(t => (t.type === 'INCOME' || t.type === 'RECEIVE_DEBT_PAYMENT') &&
+          t.date.getMonth() === month && t.date.getFullYear() === year)
+        .reduce((sum, t) => sum + t.amount, 0);
+    }).filter(income => income > 0); // Only months with income
+
+    if (monthlyIncomes.length === 0) return 0;
+    return monthlyIncomes.reduce((sum, inc) => sum + inc, 0) / monthlyIncomes.length;
+  };
+
+  const historicalIncomeAverage = calculateHistoricalIncomeAverage();
   const incomeNum = parseFloat(income) || 0;
-  const remainingIncome = incomeNum - totalSpent;
+  const remainingIncome = historicalIncomeAverage - totalSpent;
 
   // Filter available categories to add
   const availableCategories = [...TRANSACTION_CATEGORIES, ...categories.filter(c => c.type === 'EXPENSE')]
@@ -119,7 +141,7 @@ export default function BudgetsPage() {
   const hasChanges = React.useMemo(() => {
     const initialIncome = currentBudget?.totalIncome || 0;
     const currentIncomeNum = parseFloat(income) || 0;
-    
+
     // Compare income (allow small float differences if needed, but strict equality is usually fine for user input)
     if (Math.abs(currentIncomeNum - initialIncome) > 0.01) return true;
 
@@ -150,8 +172,8 @@ export default function BudgetsPage() {
               {currentDate.toLocaleString('es-PE', { month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <Button 
-            onClick={handleSave} 
+          <Button
+            onClick={handleSave}
             disabled={!hasChanges || isSaving}
             className={!hasChanges ? "bg-muted text-muted-foreground hover:bg-muted cursor-not-allowed" : ""}
           >
@@ -162,10 +184,18 @@ export default function BudgetsPage() {
 
         {/* Income Section */}
         <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Ingresos Esperados</h2>
+          <h2 className="text-lg font-semibold mb-4">Ingresos</h2>
+          {currentBudget && (
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <div className="text-sm text-muted-foreground">Presupuesto guardado</div>
+              <div className="text-lg font-semibold text-blue-700 dark:text-blue-300">
+                Ingreso esperado: S/ {currentBudget.totalIncome.toFixed(2)}
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-4">
             <div className="flex-1">
-              <label className="block text-sm font-medium mb-1">Total Ingresos</label>
+              <label className="block text-sm font-medium mb-1">Definir ingreso mensual esperado</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">S/</span>
                 <input
@@ -178,10 +208,11 @@ export default function BudgetsPage() {
               </div>
             </div>
             <div className="flex-1 p-4 bg-muted rounded-lg">
-              <div className="text-sm text-muted-foreground">Disponible para gastar</div>
+              <div className="text-sm text-muted-foreground">Disponible para gastar (según tu historial)</div>
               <div className={cn("text-2xl font-bold", remainingIncome < 0 ? "text-red-500" : "text-green-600")}>
                 S/ {remainingIncome.toFixed(2)}
               </div>
+              <div className="text-xs text-muted-foreground mt-1">Ingresos - Gastos</div>
             </div>
           </div>
         </Card>
@@ -201,11 +232,11 @@ export default function BudgetsPage() {
                 No hay categorías en este presupuesto. Agrega una para comenzar.
               </div>
             )}
-            
+
             {Object.keys(limits).map((categoryId) => {
               // Find category in system or custom categories
               const category = [...TRANSACTION_CATEGORIES, ...categories].find(c => c.id === categoryId);
-              
+
               // Handle case where category might have been deleted but still in budget
               if (!category) return null;
 
@@ -213,7 +244,7 @@ export default function BudgetsPage() {
               const spent = calculateSpent(categoryId);
               const percentage = limit > 0 ? (spent / limit) * 100 : 0;
               const remaining = limit - spent;
-              
+
               let statusColor = "bg-green-500";
               if (percentage > 100) statusColor = "bg-red-500";
               else if (percentage > 80) statusColor = "bg-yellow-500";
@@ -272,7 +303,7 @@ export default function BudgetsPage() {
                           </span>
                         </div>
                         <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className={cn("h-full transition-all duration-500", statusColor)}
                             style={{ width: `${Math.min(percentage, 100)}%` }}
                           />
