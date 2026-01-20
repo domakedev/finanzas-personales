@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -72,6 +72,7 @@ export default function TransactionsPage() {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [selectedYear, setSelectedYear] = useState<string>('ALL');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const { user: authUser } = useAuth();
   const user = useStore((state) => state.user) || authUser;
   const transactions = useStore((state) => state.transactions);
@@ -210,12 +211,47 @@ export default function TransactionsPage() {
     availableMonths.push(...Array.from(monthsSet).sort((a, b) => parseInt(a) - parseInt(b)));
   }
 
-  const filteredTransactions = transactions.filter(tx => {
+  const allCategories = [...TRANSACTION_CATEGORIES, ...INCOME_SOURCES, ...categories];
+  const availableCategories = useMemo(() => {
+    if (filterType === 'EXPENSE') {
+      const expenseIds = new Set([...TRANSACTION_CATEGORIES.map(c => c.id), ...categories.filter(c => c.type === 'expense').map(c => c.id)]);
+      return ['ALL', ...Array.from(expenseIds)];
+    } else if (filterType === 'INCOME') {
+      const incomeIds = new Set([...INCOME_SOURCES.map(c => c.id), ...categories.filter(c => c.type === 'income').map(c => c.id)]);
+      return ['ALL', ...Array.from(incomeIds)];
+    } else {
+      const allIds = new Set(allCategories.map(c => c.id));
+      return ['ALL', ...Array.from(allIds)];
+    }
+  }, [filterType, categories]);
+
+  const filteredTransactions = useMemo(() => transactions.filter(tx => {
     const matchesType = filterType === 'ALL' || tx.type === filterType;
-    const matchesMonth = selectedMonth === 'ALL' || tx.createdAt.getMonth() === parseInt(selectedMonth);
-    const matchesYear = selectedYear === 'ALL' || tx.createdAt.getFullYear() === parseInt(selectedYear);
-    return matchesType && matchesMonth && matchesYear;
-  });
+    const matchesMonth = selectedMonth === 'ALL' || tx.date.getMonth() === parseInt(selectedMonth);
+    const matchesYear = selectedYear === 'ALL' || tx.date.getFullYear() === parseInt(selectedYear);
+    const matchesCategory = selectedCategory === 'ALL' || tx.categoryId === selectedCategory;
+    return matchesType && matchesMonth && matchesYear && matchesCategory;
+  }), [transactions, filterType, selectedMonth, selectedYear, selectedCategory]);
+
+  // Calcular total
+  const totalAmount = useMemo(() => filteredTransactions.reduce((sum, tx) => {
+    if (tx.type === 'INCOME' || tx.type === 'RECEIVE_DEBT_PAYMENT') return sum + tx.amount;
+    if (tx.type === 'EXPENSE' || tx.type === 'PAY_DEBT' || tx.type === 'PAY_CREDIT_CARD' || tx.type === 'SAVE_FOR_GOAL') return sum - tx.amount;
+    return sum; // TRANSFER no afecta el total neto
+  }, 0), [filteredTransactions]);
+
+  // Desglose por categoría
+  const categoryBreakdown = useMemo(() => {
+    const breakdown: Record<string, number> = {};
+    filteredTransactions.forEach(tx => {
+      if (tx.categoryId && (tx.type === 'EXPENSE' || tx.type === 'INCOME')) {
+        const catId = tx.categoryId;
+        const sign = tx.type === 'EXPENSE' ? -1 : 1;
+        breakdown[catId] = (breakdown[catId] || 0) + (tx.amount * sign);
+      }
+    });
+    return breakdown;
+  }, [filteredTransactions]);
 
   return (
     <Layout>
@@ -266,9 +302,64 @@ export default function TransactionsPage() {
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Categoría</label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              >
+                {availableCategories.map(c => (
+                  <option key={c} value={c}>
+                    {c === 'ALL' ? 'Todas' : allCategories.find(cat => cat.id === c)?.name || 'Desconocida'}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Resumen</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="font-medium">Total:</span>
+              <span className={`font-bold ${totalAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                S/ {totalAmount.toFixed(2)}
+              </span>
+            </div>
+            {Object.keys(categoryBreakdown).length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Desglose por Categoría:</h4>
+                <div className="space-y-2">
+                  {Object.entries(categoryBreakdown)
+                    .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
+                    .map(([catId, amount]) => {
+                      const category = allCategories.find(c => c.id === catId);
+                      const isPositive = amount > 0;
+                      return (
+                        <div key={catId} className="flex justify-between items-center">
+                          <span className="flex items-center gap-2">
+                            {category?.icon} {category?.name || 'Desconocida'}
+                          </span>
+                          <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
+                            S/ {Math.abs(amount).toFixed(2)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <br />
 
       <Card>
         <CardHeader>
@@ -328,25 +419,25 @@ export default function TransactionsPage() {
                 const getAmountDisplay = () => {
                   const account = accounts.find(a => a.id === tx.accountId);
                   const symbol = account?.currency === 'USD' ? '$' : 'S/';
-                  
+
                   if (tx.type === 'TRANSFER' && tx.fromAccountId) {
-                      const fromAccount = accounts.find(a => a.id === tx.fromAccountId);
-                      const toAccount = accounts.find(a => a.id === tx.accountId);
-                      
-                      if (fromAccount && toAccount && fromAccount.currency !== toAccount.currency) {
-                          const fromSymbol = fromAccount.currency === 'USD' ? '$' : 'S/';
-                          const toSymbol = toAccount.currency === 'USD' ? '$' : 'S/';
-                          const converted = tx.convertedAmount || tx.amount;
-                          return (
-                            <span className="text-xs block text-right">
-                              {fromSymbol} {tx.amount.toFixed(2)} <br/>
-                              ↓ <br/>
-                              {toSymbol} {converted.toFixed(2)}
-                            </span>
-                          );
-                      }
+                    const fromAccount = accounts.find(a => a.id === tx.fromAccountId);
+                    const toAccount = accounts.find(a => a.id === tx.accountId);
+
+                    if (fromAccount && toAccount && fromAccount.currency !== toAccount.currency) {
+                      const fromSymbol = fromAccount.currency === 'USD' ? '$' : 'S/';
+                      const toSymbol = toAccount.currency === 'USD' ? '$' : 'S/';
+                      const converted = tx.convertedAmount || tx.amount;
+                      return (
+                        <span className="text-xs block text-right">
+                          {fromSymbol} {tx.amount.toFixed(2)} <br />
+                          ↓ <br />
+                          {toSymbol} {converted.toFixed(2)}
+                        </span>
+                      );
+                    }
                   }
-                  
+
                   return `${symbol} ${tx.amount.toFixed(2)}`;
                 };
 
@@ -404,14 +495,13 @@ export default function TransactionsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className={`font-bold text-right ${
-                        tx.type === 'TRANSFER' ? 'text-blue-800 dark:text-blue-200' :
+                      <div className={`font-bold text-right ${tx.type === 'TRANSFER' ? 'text-blue-800 dark:text-blue-200' :
                         tx.type === 'PAY_DEBT' ? 'text-purple-800 dark:text-purple-200' :
-                        tx.type === 'PAY_CREDIT_CARD' ? 'text-orange-800 dark:text-orange-200' :
-                        tx.type === 'SAVE_FOR_GOAL' ? 'text-amber-800 dark:text-amber-200' :
-                        tx.type === 'RECEIVE_DEBT_PAYMENT' ? 'text-emerald-800 dark:text-emerald-200' :
-                        tx.type === 'INCOME' ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'
-                      }`}>
+                          tx.type === 'PAY_CREDIT_CARD' ? 'text-orange-800 dark:text-orange-200' :
+                            tx.type === 'SAVE_FOR_GOAL' ? 'text-amber-800 dark:text-amber-200' :
+                              tx.type === 'RECEIVE_DEBT_PAYMENT' ? 'text-emerald-800 dark:text-emerald-200' :
+                                tx.type === 'INCOME' ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'
+                        }`}>
                         <div className="flex items-center gap-1">
                           <span>{tx.type === 'TRANSFER' ? '↔' : (tx.type === 'INCOME' || tx.type === 'RECEIVE_DEBT_PAYMENT') ? '+' : '-'}</span>
                           {getAmountDisplay()}
@@ -453,11 +543,11 @@ export default function TransactionsPage() {
         }}
         title={editingTransaction ? "Editar Transacción" : "Nueva Transacción"}
       >
-        <TransactionForm 
+        <TransactionForm
           onSuccess={() => {
             setIsModalOpen(false);
             setEditingTransaction(null);
-          }} 
+          }}
           transaction={editingTransaction || undefined}
         />
       </Modal>
