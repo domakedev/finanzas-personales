@@ -55,30 +55,30 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     resolver: zodResolver(TransactionSchema),
     defaultValues: transaction
       ? {
-          type: transaction.type,
-          amount: transaction.amount,
-          description: transaction.description,
-          date:
-            transaction.date instanceof Date
-              ? transaction.date.toISOString().split("T")[0]
-              : new Date(transaction.date).toISOString().split("T")[0],
-          accountId: transaction.accountId,
-          fromAccountId: transaction.fromAccountId,
-          categoryId: transaction.categoryId,
-          debtId: transaction.debtId,
-          goalId: transaction.goalId,
-          exchangeRate: transaction.exchangeRate,
-        }
+        type: transaction.type,
+        amount: transaction.amount,
+        description: transaction.description,
+        date:
+          transaction.date instanceof Date
+            ? transaction.date.toISOString().split("T")[0]
+            : new Date(transaction.date).toISOString().split("T")[0],
+        accountId: transaction.accountId,
+        fromAccountId: transaction.fromAccountId,
+        categoryId: transaction.categoryId,
+        debtId: transaction.debtId,
+        goalId: transaction.goalId,
+        exchangeRate: transaction.exchangeRate,
+      }
       : {
-          type: "EXPENSE" as const,
-          date: (() => {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, "0");
-            const day = String(today.getDate()).padStart(2, "0");
-            return `${year}-${month}-${day}`;
-          })(), // Format YYYY-MM-DD for input type="date" using local date
-        },
+        type: "EXPENSE" as const,
+        date: (() => {
+          const today = new Date();
+          const year = today.getFullYear();
+          const month = String(today.getMonth() + 1).padStart(2, "0");
+          const day = String(today.getDate()).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        })(), // Format YYYY-MM-DD for input type="date" using local date
+      },
   });
 
   const transactionType = watch("type");
@@ -143,20 +143,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         const availableCredit = creditLimit - usedCredit;
 
         if (data.amount > availableCredit) {
-          return `¡Ups! No tienes suficiente crédito disponible. Disponible: ${
-            creditCard.currency === "USD" ? "$" : "S/"
-          } ${availableCredit.toFixed(2)}`;
+          return `¡Ups! No tienes suficiente crédito disponible. Disponible: ${creditCard.currency === "USD" ? "$" : "S/"
+            } ${availableCredit.toFixed(2)}`;
         }
       } else {
         // Regular account validation
         const account = accounts.find((a) => a.id === data.accountId);
         if (!account) return "La cuenta seleccionada no existe";
         if (account.balance < data.amount) {
-          return `¡Ups! No tienes suficiente saldo. Disponible: ${
-            account.currency === "USD" ? "$" : "S/"
-          } ${account.balance.toFixed(
-            2
-          )}. Puedes transferir fondos desde otra cuenta primero.`;
+          return `¡Ups! No tienes suficiente saldo. Disponible: ${account.currency === "USD" ? "$" : "S/"
+            } ${account.balance.toFixed(
+              2
+            )}. Puedes transferir fondos desde otra cuenta primero.`;
         }
       }
     }
@@ -173,11 +171,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       if (!fromAccount) return "La cuenta de origen no existe";
       if (!toAccount) return "La cuenta de destino no existe";
       if (fromAccount.balance < data.amount) {
-        return `¡Ups! No tienes suficiente saldo en ${
-          fromAccount.name
-        }. Disponible: ${
-          fromAccount.currency === "USD" ? "$" : "S/"
-        } ${fromAccount.balance.toFixed(2)}`;
+        return `¡Ups! No tienes suficiente saldo en ${fromAccount.name
+          }. Disponible: ${fromAccount.currency === "USD" ? "$" : "S/"
+          } ${fromAccount.balance.toFixed(2)}`;
       }
 
       // Check if exchange rate is needed
@@ -200,9 +196,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         if (remainingDebt <= 0)
           return "Esta deuda ya está completamente pagada";
         if (data.amount > remainingDebt) {
-          return `El monto excede la deuda restante. Máximo: ${
-            debt.currency === "USD" ? "$" : "S/"
-          } ${remainingDebt.toFixed(2)}`;
+          return `El monto excede la deuda restante. Máximo: ${debt.currency === "USD" ? "$" : "S/"
+            } ${remainingDebt.toFixed(2)}`;
         }
       } else {
         // Debt doesn't exist, but allow the transaction (it will be orphaned)
@@ -210,9 +205,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       }
 
       if (account.balance < data.amount) {
-        return `¡Ups! No tienes suficiente saldo. Disponible: ${
-          account.currency === "USD" ? "$" : "S/"
-        } ${account.balance.toFixed(2)}`;
+        return `¡Ups! No tienes suficiente saldo. Disponible: ${account.currency === "USD" ? "$" : "S/"
+          } ${account.balance.toFixed(2)}`;
       }
     }
 
@@ -229,13 +223,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 
       if (creditCard) {
         const remainingDebt =
-          creditCard.totalAmount - (creditCard.paidAmount || 0);
+          +creditCard.totalAmount.toFixed(2) - (creditCard.paidAmount || 0);
         if (remainingDebt <= 0)
           return "Esta tarjeta de crédito ya está completamente pagada";
         if (data.amount > remainingDebt) {
-          return `El monto excede la deuda restante. Máximo: ${
-            creditCard.currency === "USD" ? "$" : "S/"
-          } ${remainingDebt.toFixed(2)}`;
+          return `El monto excede la deuda restante. Máximo: ${creditCard.currency === "USD" ? "$" : "S/"
+            } ${remainingDebt.toFixed(2)}`;
         }
       } else {
         // Credit card doesn't exist, but allow the transaction (it will be orphaned)
@@ -243,9 +236,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       }
 
       if (account.balance < data.amount) {
-        return `¡Ups! No tienes suficiente saldo. Disponible: ${
-          account.currency === "USD" ? "$" : "S/"
-        } ${account.balance.toFixed(2)}`;
+        return `¡Ups! No tienes suficiente saldo. Disponible: ${account.currency === "USD" ? "$" : "S/"
+          } ${account.balance.toFixed(2)}`;
       }
     }
 
@@ -263,9 +255,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         if (remainingGoal <= 0)
           return "Esta meta ya está completamente alcanzada";
         if (data.amount > remainingGoal) {
-          return `El monto excede la meta restante. Máximo: ${
-            goal.currency === "USD" ? "$" : "S/"
-          } ${remainingGoal.toFixed(2)}`;
+          return `El monto excede la meta restante. Máximo: ${goal.currency === "USD" ? "$" : "S/"
+            } ${remainingGoal.toFixed(2)}`;
         }
       } else {
         // Goal doesn't exist, but allow the transaction (it will be orphaned)
@@ -273,9 +264,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       }
 
       if (account.balance < data.amount) {
-        return `¡Ups! No tienes suficiente saldo. Disponible: ${
-          account.currency === "USD" ? "$" : "S/"
-        } ${account.balance.toFixed(2)}`;
+        return `¡Ups! No tienes suficiente saldo. Disponible: ${account.currency === "USD" ? "$" : "S/"
+          } ${account.balance.toFixed(2)}`;
       }
     }
 
@@ -293,9 +283,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         if (remainingDebt <= 0)
           return "Este préstamo ya está completamente pagado";
         if (data.amount > remainingDebt) {
-          return `El monto excede la deuda restante. Máximo: ${
-            debt.currency === "USD" ? "$" : "S/"
-          } ${remainingDebt.toFixed(2)}`;
+          return `El monto excede la deuda restante. Máximo: ${debt.currency === "USD" ? "$" : "S/"
+            } ${remainingDebt.toFixed(2)}`;
         }
       }
     }
@@ -559,7 +548,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           const newPaidAmount = Math.max(
             0,
             Math.round(((debt.paidAmount || 0) - transaction.amount) * 100) /
-              100
+            100
           );
           updateDebt(transaction.debtId, { paidAmount: newPaidAmount });
           await updateDebtInDB(transaction.debtId, {
@@ -624,7 +613,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           const newPaidAmount = Math.max(
             0,
             Math.round(((debt.paidAmount || 0) - transaction.amount) * 100) /
-              100
+            100
           );
           updateDebt(transaction.debtId, { paidAmount: newPaidAmount });
           await updateDebtInDB(transaction.debtId, {
@@ -820,21 +809,21 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
               </option>
               {transactionType === "INCOME"
                 ? [
-                    ...INCOME_SOURCES,
-                    ...categories.filter((c) => c.type === "INCOME"),
-                  ].map((src) => (
-                    <option key={src.id} value={src.id}>
-                      {src.icon} {src.name}
-                    </option>
-                  ))
+                  ...INCOME_SOURCES,
+                  ...categories.filter((c) => c.type === "INCOME"),
+                ].map((src) => (
+                  <option key={src.id} value={src.id}>
+                    {src.icon} {src.name}
+                  </option>
+                ))
                 : [
-                    ...TRANSACTION_CATEGORIES,
-                    ...categories.filter((c) => c.type === "EXPENSE"),
-                  ].map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.icon} {cat.name}
-                    </option>
-                  ))}
+                  ...TRANSACTION_CATEGORIES,
+                  ...categories.filter((c) => c.type === "EXPENSE"),
+                ].map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.icon} {cat.name}
+                  </option>
+                ))}
             </select>
           </div>
         )}
@@ -1042,12 +1031,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         <div className="space-y-2">
           <label className="text-sm font-medium">
             {transactionType === "PAY_DEBT" ||
-            transactionType === "SAVE_FOR_GOAL"
+              transactionType === "SAVE_FOR_GOAL"
               ? "Cuenta para " +
-                (transactionType === "PAY_DEBT" ? "Pagar" : "Ahorrar")
+              (transactionType === "PAY_DEBT" ? "Pagar" : "Ahorrar")
               : transactionType === "RECEIVE_DEBT_PAYMENT"
-              ? "Cuenta de Destino (Donde recibo)"
-              : "Cuenta"}
+                ? "Cuenta de Destino (Donde recibo)"
+                : "Cuenta"}
           </label>
           <select
             {...register("accountId")}
@@ -1111,16 +1100,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         {transaction
           ? "Actualizar Transacción"
           : transactionType === "TRANSFER"
-          ? "Transferir"
-          : transactionType === "PAY_DEBT"
-          ? "Pagar Deuda"
-          : transactionType === "RECEIVE_DEBT_PAYMENT"
-          ? "Registrar Pago Recibido"
-          : transactionType === "PAY_CREDIT_CARD"
-          ? "Pagar Tarjeta de Crédito"
-          : transactionType === "SAVE_FOR_GOAL"
-          ? "Ahorrar para Meta"
-          : "Guardar Transacción"}
+            ? "Transferir"
+            : transactionType === "PAY_DEBT"
+              ? "Pagar Deuda"
+              : transactionType === "RECEIVE_DEBT_PAYMENT"
+                ? "Registrar Pago Recibido"
+                : transactionType === "PAY_CREDIT_CARD"
+                  ? "Pagar Tarjeta de Crédito"
+                  : transactionType === "SAVE_FOR_GOAL"
+                    ? "Ahorrar para Meta"
+                    : "Guardar Transacción"}
       </Button>
     </form>
   );

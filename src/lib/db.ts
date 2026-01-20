@@ -62,7 +62,7 @@ export const addTransaction = async (userId: string, transaction: Omit<Transacti
 };
 
 export const updateTransaction = async (transactionId: string, transaction: Partial<Omit<Transaction, 'id'>>) => {
-  const data = transaction.date 
+  const data = transaction.date
     ? { ...transaction, date: Timestamp.fromDate(transaction.date) }
     : transaction;
   return updateDoc(doc(db, 'transactions', transactionId), data);
@@ -93,12 +93,23 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
     const updatePromises = [];
 
     if (type === 'EXPENSE' && accountId) {
-      const accountRef = doc(db, 'accounts', accountId);
-      const accountDoc = await getDoc(accountRef);
-      if (accountDoc.exists()) {
-        const currentBalance = Number(accountDoc.data().balance) || 0;
-        const newBalance = currentBalance + amount;
-        updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
+      // Check if accountId is a credit card (stored in debts)
+      const debtRef = doc(db, 'debts', accountId);
+      const debtDoc = await getDoc(debtRef);
+      if (debtDoc.exists() && debtDoc.data().isCreditCard) {
+        // It's a credit card expense, revert by subtracting from totalAmount
+        const currentTotal = Number(debtDoc.data().totalAmount) || 0;
+        const newTotal = Math.max(0, currentTotal - amount);
+        updatePromises.push(updateDoc(debtRef, { totalAmount: newTotal }));
+      } else {
+        // Regular account expense, add back to balance
+        const accountRef = doc(db, 'accounts', accountId);
+        const accountDoc = await getDoc(accountRef);
+        if (accountDoc.exists()) {
+          const currentBalance = Number(accountDoc.data().balance) || 0;
+          const newBalance = currentBalance + amount;
+          updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
+        }
       }
     } else if (type === 'INCOME' && accountId) {
       const accountRef = doc(db, 'accounts', accountId);
@@ -251,9 +262,9 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
 
     // 4. Delete the transaction
     await deleteDoc(transactionRef);
-    
+
   } catch (error) {
-    console.error("Error deleting transaction:", error);
+    console.error("Error deleting transactionxxx:", error);
     throw error;
   }
 };
@@ -327,7 +338,7 @@ export const deleteGoal = async (goalId: string) => {
 // Budgets
 export const getBudget = async (userId: string, month: number, year: number): Promise<Budget | null> => {
   const q = query(
-    collection(db, 'budgets'), 
+    collection(db, 'budgets'),
     where('userId', '==', userId),
     where('month', '==', month),
     where('year', '==', year)
@@ -340,7 +351,7 @@ export const getBudget = async (userId: string, month: number, year: number): Pr
 export const saveBudget = async (userId: string, budget: Omit<Budget, 'id' | 'userId'>) => {
   // Check if budget exists for this month/year
   const existingBudget = await getBudget(userId, budget.month, budget.year);
-  
+
   if (existingBudget && existingBudget.id) {
     return updateDoc(doc(db, 'budgets', existingBudget.id), budget);
   } else {

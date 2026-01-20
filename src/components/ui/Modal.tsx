@@ -23,7 +23,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
     >
       <div 
         className={cn(
-          "relative w-full max-w-lg rounded-lg bg-background p-6 shadow-lg animate-in zoom-in-95 duration-200",
+          "relative w-full max-w-lg rounded-lg bg-background p-6 shadow-lg animate-in zoom-in-95 duration-200 max-h-4/5 overflow-y-scroll",
           className
         )}
         onClick={(e) => e.stopPropagation()}

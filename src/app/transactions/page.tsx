@@ -84,8 +84,6 @@ export default function TransactionsPage() {
   const updateDebtInStore = useStore((state) => state.updateDebt);
   const updateGoalInStore = useStore((state) => state.updateGoal);
 
-  console.log("🚀 ~ TransactionsPage ~ transactions:", transactions)
-
   const handleDelete = async (transactionId: string) => {
     const transaction = transactions.find(t => t.id === transactionId);
     if (!transaction) return;
