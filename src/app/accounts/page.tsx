@@ -45,7 +45,7 @@ export default function AccountsPage() {
       const hasTransactions = transactions.some(
         t => t.accountId === accountId || t.fromAccountId === accountId
       );
-      
+
       if (hasTransactions) {
         setError("No se puede eliminar esta cuenta porque tiene transacciones asociadas. Elimina las transacciones primero.");
         return;
@@ -137,8 +137,8 @@ export default function AccountsPage() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {account.type === 'BANK' ? 'Cuenta Bancaria' : 
-                 account.type === 'WALLET' ? 'Billetera Digital' : 'Efectivo'}
+                {account.type === 'BANK' ? 'Cuenta Bancaria' :
+                  account.type === 'WALLET' ? 'Billetera Digital' : 'Efectivo'}
               </p>
             </CardContent>
           </Card>
@@ -153,11 +153,11 @@ export default function AccountsPage() {
         }}
         title={editingAccount ? "Editar Cuenta" : "Nueva Cuenta"}
       >
-        <AccountForm 
+        <AccountForm
           onSuccess={() => {
             setIsModalOpen(false);
             setEditingAccount(null);
-          }} 
+          }}
           account={editingAccount || undefined}
         />
       </Modal>
@@ -217,10 +217,10 @@ export default function AccountsPage() {
               const accountTransactions = transactions
                 .filter(t => t.accountId === historyModal.account!.id || t.fromAccountId === historyModal.account!.id)
                 .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-              
+
               const firstTransaction = accountTransactions[0];
               const creationDate = firstTransaction ? new Date(firstTransaction.date) : null;
-              
+
               return creationDate && (
                 <p className="text-xs text-muted-foreground">
                   Cuenta desde: {creationDate.toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -247,7 +247,7 @@ export default function AccountsPage() {
                 const startOfWeek = new Date(txDate);
                 startOfWeek.setDate(txDate.getDate() - txDate.getDay()); // Domingo de esa semana
                 const weekKey = startOfWeek.toISOString().split('T')[0];
-                
+
                 if (!groupedByWeek[weekKey]) {
                   groupedByWeek[weekKey] = [];
                 }
@@ -262,10 +262,22 @@ export default function AccountsPage() {
                       const startDate = new Date(weekStart);
                       const endDate = new Date(startDate);
                       endDate.setDate(startDate.getDate() + 6);
-                      
+
                       const weekTotal = weekTransactions.reduce((sum, tx) => {
                         const isIncoming = tx.type === 'TRANSFER' ? tx.accountId === historyModal.account!.id : (tx.type === 'INCOME' || tx.type === 'RECEIVE_DEBT_PAYMENT');
-                        return sum + (isIncoming ? tx.amount : -tx.amount);
+
+                        let amountForTotal = tx.amount;
+                        if (tx.type === 'TRANSFER' && tx.fromAccountId && tx.accountId) {
+                          const fromAccount = accounts.find(a => a.id === tx.fromAccountId);
+                          const toAccount = accounts.find(a => a.id === tx.accountId);
+                          if (fromAccount && toAccount && fromAccount.currency !== toAccount.currency) {
+                            if (tx.accountId === historyModal.account!.id && tx.convertedAmount) {
+                              amountForTotal = tx.convertedAmount;
+                            }
+                          }
+                        }
+
+                        return sum + (isIncoming ? amountForTotal : -amountForTotal);
                       }, 0);
 
                       return (
@@ -278,10 +290,23 @@ export default function AccountsPage() {
                               {weekTotal >= 0 ? '+' : ''}{historyModal.account!.currency === 'USD' ? '$' : 'S/'} {Math.abs(weekTotal).toFixed(2)}
                             </span>
                           </div>
-                          
+
                           <div className="space-y-2">
                             {weekTransactions.map((tx) => {
                               const isIncoming = tx.type === 'TRANSFER' ? tx.accountId === historyModal.account!.id : (tx.type === 'INCOME' || tx.type === 'RECEIVE_DEBT_PAYMENT');
+
+                              // Determinar el monto correcto para mostrar
+                              let displayAmount = tx.amount;
+                              if (tx.type === 'TRANSFER' && tx.fromAccountId && tx.accountId) {
+                                const fromAccount = accounts.find(a => a.id === tx.fromAccountId);
+                                const toAccount = accounts.find(a => a.id === tx.accountId);
+                                if (fromAccount && toAccount && fromAccount.currency !== toAccount.currency) {
+                                  // Si la cuenta actual es la de destino, mostrar el monto convertido
+                                  if (tx.accountId === historyModal.account!.id && tx.convertedAmount) {
+                                    displayAmount = tx.convertedAmount;
+                                  }
+                                }
+                              }
 
                               return (
                                 <div key={tx.id} className="p-3 border rounded-lg flex items-center justify-between hover:bg-accent/30 transition-colors">
@@ -290,18 +315,18 @@ export default function AccountsPage() {
                                     <p className="text-xs text-muted-foreground">
                                       {new Date(tx.date).toLocaleDateString('es-PE')} • {
                                         tx.type === 'INCOME' ? '💰 Ingreso' :
-                                        tx.type === 'EXPENSE' ? '💸 Gasto' :
-                                        tx.type === 'TRANSFER' ? '🔄 Transferencia' :
-                                        tx.type === 'PAY_DEBT' ? `💳 Pago: ${debts.find(d => d.id === tx.debtId)?.name || 'Deuda'}` :
-                                        tx.type === 'PAY_CREDIT_CARD' ? `💳 Pago TC: ${debts.find(d => d.id === tx.debtId)?.name || 'Tarjeta'}` :
-                                        tx.type === 'RECEIVE_DEBT_PAYMENT' ? `💵 Cobro: ${debts.find(d => d.id === tx.debtId)?.name || 'Préstamo'}` :
-                                        tx.type === 'SAVE_FOR_GOAL' ? '🌱 Ahorro Meta' :
-                                        tx.type
+                                          tx.type === 'EXPENSE' ? '💸 Gasto' :
+                                            tx.type === 'TRANSFER' ? '🔄 Transferencia' :
+                                              tx.type === 'PAY_DEBT' ? `💳 Pago: ${debts.find(d => d.id === tx.debtId)?.name || 'Deuda'}` :
+                                                tx.type === 'PAY_CREDIT_CARD' ? `💳 Pago TC: ${debts.find(d => d.id === tx.debtId)?.name || 'Tarjeta'}` :
+                                                  tx.type === 'RECEIVE_DEBT_PAYMENT' ? `💵 Cobro: ${debts.find(d => d.id === tx.debtId)?.name || 'Préstamo'}` :
+                                                    tx.type === 'SAVE_FOR_GOAL' ? '🌱 Ahorro Meta' :
+                                                      tx.type
                                       }
                                     </p>
                                   </div>
                                   <div className={`font-bold ${isIncoming ? 'text-green-600' : 'text-red-600'}`}>
-                                    {isIncoming ? '+' : '-'} {historyModal.account!.currency === 'USD' ? '$' : 'S/'} {tx.amount.toFixed(2)}
+                                    {isIncoming ? '+' : '-'} {historyModal.account!.currency === 'USD' ? '$' : 'S/'} {displayAmount.toFixed(2)}
                                   </div>
                                 </div>
                               );
