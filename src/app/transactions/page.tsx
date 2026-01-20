@@ -214,10 +214,10 @@ export default function TransactionsPage() {
   const allCategories = [...TRANSACTION_CATEGORIES, ...INCOME_SOURCES, ...categories];
   const availableCategories = useMemo(() => {
     if (filterType === 'EXPENSE') {
-      const expenseIds = new Set([...TRANSACTION_CATEGORIES.map(c => c.id), ...categories.filter(c => c.type === 'expense').map(c => c.id)]);
+      const expenseIds = new Set([...TRANSACTION_CATEGORIES.map(c => c.id), ...categories.filter(c => c.type === 'EXPENSE').map(c => c.id)]);
       return ['ALL', ...Array.from(expenseIds)];
     } else if (filterType === 'INCOME') {
-      const incomeIds = new Set([...INCOME_SOURCES.map(c => c.id), ...categories.filter(c => c.type === 'income').map(c => c.id)]);
+      const incomeIds = new Set([...INCOME_SOURCES.map(c => c.id), ...categories.filter(c => c.type === 'INCOME').map(c => c.id)]);
       return ['ALL', ...Array.from(incomeIds)];
     } else {
       const allIds = new Set(allCategories.map(c => c.id));
