@@ -87,8 +87,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const debtId = watch("debtId");
   const goalId = watch("goalId");
   const dateWatch = watch("date")
-  const amount = watch("amount") as number;
-  const exchangeRate = watch("exchangeRate") as number;
+  const amount = Number(watch("amount")) || 0;
+  const exchangeRate = Number(watch("exchangeRate")) || 0;
 
   // Check if exchange rate is needed
   useEffect(() => {
@@ -339,7 +339,15 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
             fromAccount.currency !== toAccount.currency &&
             data.exchangeRate
           ) {
-            newTransaction.convertedAmount = data.amount * data.exchangeRate;
+            // Assume exchangeRate is always PEN/USD rate
+            if (fromAccount.currency === 'PEN' && toAccount.currency === 'USD') {
+              newTransaction.convertedAmount = data.amount / data.exchangeRate;
+            } else if (fromAccount.currency === 'USD' && toAccount.currency === 'PEN') {
+              newTransaction.convertedAmount = data.amount * data.exchangeRate;
+            } else {
+              // Fallback
+              newTransaction.convertedAmount = data.amount / data.exchangeRate;
+            }
           }
         }
       }
@@ -1017,10 +1025,22 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                     {errors.exchangeRate.message}
                   </p>
                 )}
-                {amount && exchangeRate && (
+                {amount > 0 && exchangeRate > 0 && fromAccountId && toAccountId && (
                   <p className="text-xs text-muted-foreground">
-                    Se transferirán {amount} →{" "}
-                    {(Number(amount) * Number(exchangeRate)).toFixed(2)}
+                    Se transferirán {(() => {
+                      const fromAcc = accounts.find(a => a.id === fromAccountId);
+                      const toAcc = accounts.find(a => a.id === toAccountId);
+                      if (fromAcc && toAcc) {
+                        let converted = amount;
+                        if (fromAcc.currency === 'PEN' && toAcc.currency === 'USD') {
+                          converted = amount / exchangeRate;
+                        } else if (fromAcc.currency === 'USD' && toAcc.currency === 'PEN') {
+                          converted = amount * exchangeRate;
+                        }
+                        return `${amount} ${fromAcc.currency === 'USD' ? '$' : 'S/'} → ${converted.toFixed(2)} ${toAcc.currency === 'USD' ? '$' : 'S/'}`;
+                      }
+                      return `${amount} → ${(amount * exchangeRate).toFixed(2)}`;
+                    })()}
                   </p>
                 )}
               </div>
