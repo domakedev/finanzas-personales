@@ -1,52 +1,51 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the user is authenticated
+    // Funciones de ayuda
     function isAuthenticated() {
       return request.auth != null;
     }
-
-    // Helper function to check if the data belongs to the user
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-
-    // Rules for Accounts
-    match /accounts/{accountId} {
+    // Cuentas
+    match /accounts/{docId} {
       allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow read, update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+      allow read: if isAuthenticated() && (resource == null || isOwner(resource.data.userId));
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+    // Transacciones
+    match /transactions/{docId} {
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow read: if isAuthenticated() && (resource == null || isOwner(resource.data.userId));
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+    // Deudas
+    match /debts/{docId} {
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow read: if isAuthenticated() && (resource == null || isOwner(resource.data.userId));
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+    // Metas
+    match /goals/{docId} {
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow read: if isAuthenticated() && (resource == null || isOwner(resource.data.userId));
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
-    // Rules for Transactions
-    match /transactions/{transactionId} {
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow read, update, delete: if isAuthenticated() && isOwner(resource.data.userId);
-    }
-
-    // Rules for Debts
-    match /debts/{debtId} {
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow read, update, delete: if isAuthenticated() && isOwner(resource.data.userId);
-    }
-
-    // Rules for Goals
-    match /goals/{goalId} {
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow read, update, delete: if isAuthenticated() && isOwner(resource.data.userId);
-    }
-
-    // Rules for Budgets
+    // Presupuestos
     match /budgets/{budgetId} {
       allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow read, update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+      allow read: if isAuthenticated() && (resource == null || isOwner(resource.data.userId));
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
-    // Rules for Categories
+    // Categorías
     match /categories/{categoryId} {
       allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow read, update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+      allow read: if isAuthenticated() && (resource == null || isOwner(resource.data.userId));
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
   }
 }
