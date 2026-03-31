@@ -15,6 +15,7 @@ import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, Sprout, Han
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
+import { addMoney, subtractMoney } from '@/lib/utils';
 
 export default function TransactionsPage() {
   // Colores para diferentes tipos de transacción
@@ -96,65 +97,64 @@ export default function TransactionsPage() {
       if (transaction.type === 'EXPENSE' && transaction.accountId) {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
-          updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
+          updateAccountInStore(account.id, { balance: addMoney(account.balance, transaction.amount) });
         }
       } else if (transaction.type === 'INCOME' && transaction.accountId) {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
-          updateAccountInStore(account.id, { balance: account.balance - transaction.amount });
+          updateAccountInStore(account.id, { balance: subtractMoney(account.balance, transaction.amount) });
         }
       } else if (transaction.type === 'TRANSFER') {
         if (transaction.fromAccountId) {
           const fromAccount = accounts.find(a => a.id === transaction.fromAccountId);
           if (fromAccount) {
-            updateAccountInStore(fromAccount.id, { balance: fromAccount.balance + transaction.amount });
+            updateAccountInStore(fromAccount.id, { balance: addMoney(fromAccount.balance, transaction.amount) });
           }
         }
         if (transaction.accountId) {
           const toAccount = accounts.find(a => a.id === transaction.accountId);
           if (toAccount) {
             const amountToRevert = transaction.convertedAmount || transaction.amount;
-            updateAccountInStore(toAccount.id, { balance: toAccount.balance - amountToRevert });
+            updateAccountInStore(toAccount.id, { balance: subtractMoney(toAccount.balance, amountToRevert) });
           }
         }
       } else if (transaction.type === 'PAY_DEBT' && transaction.accountId) {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
-          updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
+          updateAccountInStore(account.id, { balance: addMoney(account.balance, transaction.amount) });
         }
         const debt = debts.find(d => d.id === transaction.debtId && !d.isCreditCard);
         if (debt) {
-          const newPaidAmount = Math.max(0, Math.round(((debt.paidAmount || 0) - transaction.amount) * 100) / 100);
+          const newPaidAmount = Math.max(0, subtractMoney(debt.paidAmount || 0, transaction.amount));
           updateDebtInStore(debt.id, { paidAmount: newPaidAmount });
         }
       } else if (transaction.type === 'PAY_CREDIT_CARD' && transaction.accountId) {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
-          updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
+          updateAccountInStore(account.id, { balance: addMoney(account.balance, transaction.amount) });
         }
         const creditCard = debts.find(d => d.id === transaction.debtId && d.isCreditCard);
         if (creditCard) {
-          const newPaidAmount = Math.max(0, Math.round(((creditCard.paidAmount || 0) - transaction.amount) * 100) / 100);
+          const newPaidAmount = Math.max(0, subtractMoney(creditCard.paidAmount || 0, transaction.amount));
           updateDebtInStore(creditCard.id, { paidAmount: newPaidAmount });
         }
       } else if (transaction.type === 'SAVE_FOR_GOAL' && transaction.accountId) {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
-          updateAccountInStore(account.id, { balance: account.balance + transaction.amount });
+          updateAccountInStore(account.id, { balance: addMoney(account.balance, transaction.amount) });
         }
         const goal = goals.find(g => g.id === transaction.goalId);
         if (goal) {
-          const newCurrentAmount = goal.currentAmount - transaction.amount;
-          updateGoalInStore(goal.id, { currentAmount: newCurrentAmount });
+          updateGoalInStore(goal.id, { currentAmount: subtractMoney(goal.currentAmount, transaction.amount) });
         }
       } else if (transaction.type === 'RECEIVE_DEBT_PAYMENT' && transaction.accountId) {
         const account = accounts.find(a => a.id === transaction.accountId);
         if (account) {
-          updateAccountInStore(account.id, { balance: account.balance - transaction.amount });
+          updateAccountInStore(account.id, { balance: subtractMoney(account.balance, transaction.amount) });
         }
         const debt = debts.find(d => d.id === transaction.debtId && d.isLent);
         if (debt) {
-          const newPaidAmount = Math.max(0, Math.round(((debt.paidAmount || 0) - transaction.amount) * 100) / 100);
+          const newPaidAmount = Math.max(0, subtractMoney(debt.paidAmount || 0, transaction.amount));
           updateDebtInStore(debt.id, { paidAmount: newPaidAmount });
         }
       }
@@ -235,8 +235,8 @@ export default function TransactionsPage() {
 
   // Calcular total
   const totalAmount = useMemo(() => filteredTransactions.reduce((sum, tx) => {
-    if (tx.type === 'INCOME' || tx.type === 'RECEIVE_DEBT_PAYMENT') return sum + tx.amount;
-    if (tx.type === 'EXPENSE' || tx.type === 'PAY_DEBT' || tx.type === 'PAY_CREDIT_CARD' || tx.type === 'SAVE_FOR_GOAL') return sum - tx.amount;
+    if (tx.type === 'INCOME' || tx.type === 'RECEIVE_DEBT_PAYMENT') return addMoney(sum, tx.amount);
+    if (tx.type === 'EXPENSE' || tx.type === 'PAY_DEBT' || tx.type === 'PAY_CREDIT_CARD' || tx.type === 'SAVE_FOR_GOAL') return subtractMoney(sum, tx.amount);
     return sum; // TRANSFER no afecta el total neto
   }, 0), [filteredTransactions]);
 
@@ -246,8 +246,8 @@ export default function TransactionsPage() {
     filteredTransactions.forEach(tx => {
       if (tx.categoryId && (tx.type === 'EXPENSE' || tx.type === 'INCOME')) {
         const catId = tx.categoryId;
-        const sign = tx.type === 'EXPENSE' ? -1 : 1;
-        breakdown[catId] = (breakdown[catId] || 0) + (tx.amount * sign);
+        const signedAmount = tx.type === 'EXPENSE' ? -tx.amount : tx.amount;
+        breakdown[catId] = addMoney(breakdown[catId] || 0, signedAmount);
       }
     });
     return breakdown;

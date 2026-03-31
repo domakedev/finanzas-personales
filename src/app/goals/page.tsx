@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { GoalForm } from '@/components/forms/GoalForm';
 import { SavingsTree } from '@/components/SavingsTree';
+import { calcPercent } from '@/lib/utils';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { deleteGoal } from '@/lib/db';
@@ -57,7 +58,7 @@ export default function GoalsPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {goals.map((goal) => {
-          const percentage = (goal.currentAmount / goal.targetAmount) * 100;
+          const percentage = calcPercent(goal.currentAmount, goal.targetAmount);
           
           return (
             <Card key={goal.id} data-testid={`goal-${goal.name}`}>

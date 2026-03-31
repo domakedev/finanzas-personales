@@ -1,4 +1,5 @@
 import React from 'react';
+import { calcPercent } from '@/lib/utils';
 
 interface CategorySpendingBarProps {
   categoryName: string;
@@ -15,7 +16,7 @@ export function CategorySpendingBar({
   total,
   currency = 'PEN'
 }: CategorySpendingBarProps) {
-  const percentage = total > 0 ? (spent / total) * 100 : 0;
+  const percentage = total > 0 ? calcPercent(spent, total) : 0;
   const currencySymbol = currency === 'USD' ? '$' : 'S/';
 
   return (

@@ -18,6 +18,7 @@ import { AccountForm } from '@/components/forms/AccountForm';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
+import { addMoney, subtractMoney, calcPercent } from '@/lib/utils';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -34,25 +35,25 @@ export default function Dashboard() {
   } = useStore();
 
   // Calculate total balances
-  const totalBalancePEN = accounts.filter(a => a.currency === 'PEN').reduce((sum, acc) => sum + acc.balance, 0);
-  const totalBalanceUSD = accounts.filter(a => a.currency === 'USD').reduce((sum, acc) => sum + acc.balance, 0);
+  const totalBalancePEN = accounts.filter(a => a.currency === 'PEN').reduce((sum, acc) => addMoney(sum, acc.balance), 0);
+  const totalBalanceUSD = accounts.filter(a => a.currency === 'USD').reduce((sum, acc) => addMoney(sum, acc.balance), 0);
 
   // Calculate total debts (excluding lent money)
   const totalDebtPEN = debts
     .filter(debt => !debt.isCreditCard && !debt.isLent && debt.currency === 'PEN')
-    .reduce((sum, debt) => sum + (debt.totalAmount - (debt.paidAmount || 0)), 0);
+    .reduce((sum, debt) => addMoney(sum, subtractMoney(debt.totalAmount, debt.paidAmount || 0)), 0);
   const totalCreditCardDebtPEN = debts
     .filter(debt => debt.isCreditCard && debt.currency === 'PEN')
-    .reduce((sum, debt) => sum + (debt.totalAmount - (debt.paidAmount || 0)), 0);
+    .reduce((sum, debt) => addMoney(sum, subtractMoney(debt.totalAmount, debt.paidAmount || 0)), 0);
   const totalCreditCardDebtUSD = debts
     .filter(debt => debt.isCreditCard && debt.currency === 'USD')
-    .reduce((sum, debt) => sum + (debt.totalAmount - (debt.paidAmount || 0)), 0);
+    .reduce((sum, debt) => addMoney(sum, subtractMoney(debt.totalAmount, debt.paidAmount || 0)), 0);
 
-  const totalAllDebtPEN = totalDebtPEN + totalCreditCardDebtPEN;
+  const totalAllDebtPEN = addMoney(totalDebtPEN, totalCreditCardDebtPEN);
 
   // Net Worth calculation
-  const netWorthPEN = totalBalancePEN - totalAllDebtPEN;
-  const netWorthUSD = totalBalanceUSD - totalCreditCardDebtUSD;
+  const netWorthPEN = subtractMoney(totalBalancePEN, totalAllDebtPEN);
+  const netWorthUSD = subtractMoney(totalBalanceUSD, totalCreditCardDebtUSD);
 
   // Current month calculations
   const currentMonth = new Date().getMonth();
@@ -62,14 +63,14 @@ export default function Dashboard() {
 
   const incomeMonth = transactions
     .filter(t => (t.type === 'INCOME' || t.type === 'RECEIVE_DEBT_PAYMENT') && t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear)
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => addMoney(sum, t.amount), 0);
 
   const expenseMonth = transactions
     .filter(t => (t.type === 'EXPENSE' || t.type === 'PAY_CREDIT_CARD' || t.type === 'PAY_DEBT' || t.type === 'SAVE_FOR_GOAL') && t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear)
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => addMoney(sum, t.amount), 0);
 
-  const cashFlow = incomeMonth - expenseMonth;
-  const savingsRate = incomeMonth > 0 ? ((incomeMonth - expenseMonth) / incomeMonth) * 100 : 0;
+  const cashFlow = subtractMoney(incomeMonth, expenseMonth);
+  const savingsRate = incomeMonth > 0 ? calcPercent(subtractMoney(incomeMonth, expenseMonth), incomeMonth) : 0;
 
   // Budget health
   const budgetHealth = (() => {
@@ -78,11 +79,11 @@ export default function Dashboard() {
     const budgetedCategories = Object.keys(currentBudget.categoryLimits);
     const budgetedExpenses = transactions
       .filter(t => t.type === 'EXPENSE' && t.categoryId && budgetedCategories.includes(t.categoryId) && t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => addMoney(sum, t.amount), 0);
 
-    const totalBudgeted = Object.values(currentBudget.categoryLimits).reduce((sum, limit) => sum + limit, 0);
+    const totalBudgeted = Object.values(currentBudget.categoryLimits).reduce((sum, limit) => addMoney(sum, limit), 0);
 
-    return totalBudgeted > 0 ? (budgetedExpenses / totalBudgeted) * 100 : null;
+    return totalBudgeted > 0 ? calcPercent(budgetedExpenses, totalBudgeted) : null;
   })();
 
   // Credit card payment proximity
@@ -128,7 +129,7 @@ export default function Dashboard() {
       )
       .forEach(t => {
         const current = categoriesWithSpending.get(t.categoryId!) || 0;
-        categoriesWithSpending.set(t.categoryId!, current + t.amount);
+        categoriesWithSpending.set(t.categoryId!, addMoney(current, t.amount));
       });
 
     // Convert to array with category info
@@ -145,7 +146,7 @@ export default function Dashboard() {
     }).filter(c => c.spent > 0).sort((a, b) => b.spent - a.spent);
   })();
 
-  const totalExpenses = categorySpending.reduce((sum, cat) => sum + cat.spent, 0);
+  const totalExpenses = categorySpending.reduce((sum, cat) => addMoney(sum, cat.spent), 0);
 
   return (
     <Layout>
@@ -249,7 +250,7 @@ export default function Dashboard() {
                 </div>
               ) : goals.length === 1 ? (
                 <div className="flex flex-col items-center">
-                  <SavingsTree percentage={(goals[0].currentAmount / goals[0].targetAmount) * 100} />
+                  <SavingsTree percentage={calcPercent(goals[0].currentAmount, goals[0].targetAmount)} />
                   <div className="mt-4 text-center w-full">
                     <p className="font-semibold mb-1">{goals[0].name}</p>
                     <p className="text-xl font-bold">
@@ -258,7 +259,7 @@ export default function Dashboard() {
                     <p className="text-sm text-muted-foreground mt-1">
                       {goals[0].currentAmount >= goals[0].targetAmount
                         ? '🎉 ¡Meta alcanzada!'
-                        : `Faltan S/ ${(goals[0].targetAmount - goals[0].currentAmount).toFixed(2)}`
+                        : `Faltan S/ ${subtractMoney(goals[0].targetAmount, goals[0].currentAmount).toFixed(2)}`
                       }
                     </p>
                   </div>
@@ -266,7 +267,7 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-3">
                   {goals.map(goal => {
-                    const progress = (goal.currentAmount / goal.targetAmount) * 100;
+                    const progress = calcPercent(goal.currentAmount, goal.targetAmount);
                     return (
                       <div key={goal.id} className="space-y-2">
                         <div className="flex justify-between items-center text-sm">

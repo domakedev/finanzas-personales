@@ -1,4 +1,5 @@
 import { db, auth } from './firebase';
+import { addMoney, subtractMoney } from './utils';
 import {
   collection,
   addDoc,
@@ -99,7 +100,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
       if (debtDoc.exists() && debtDoc.data().isCreditCard) {
         // It's a credit card expense, revert by subtracting from totalAmount
         const currentTotal = Number(debtDoc.data().totalAmount) || 0;
-        const newTotal = Math.max(0, currentTotal - amount);
+        const newTotal = Math.max(0, subtractMoney(currentTotal, amount));
         updatePromises.push(updateDoc(debtRef, { totalAmount: newTotal }));
       } else {
         // Regular account expense, add back to balance
@@ -107,7 +108,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
         const accountDoc = await getDoc(accountRef);
         if (accountDoc.exists()) {
           const currentBalance = Number(accountDoc.data().balance) || 0;
-          const newBalance = currentBalance + amount;
+          const newBalance = addMoney(currentBalance, amount);
           updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
         }
       }
@@ -116,7 +117,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
       const accountDoc = await getDoc(accountRef);
       if (accountDoc.exists()) {
         const currentBalance = Number(accountDoc.data().balance) || 0;
-        const newBalance = currentBalance - amount;
+        const newBalance = subtractMoney(currentBalance, amount);
         updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
       }
     } else if (type === 'TRANSFER') {
@@ -126,7 +127,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
         const fromAccountDoc = await getDoc(fromAccountRef);
         if (fromAccountDoc.exists()) {
           const currentBalance = Number(fromAccountDoc.data().balance) || 0;
-          const newBalance = currentBalance + amount;
+          const newBalance = addMoney(currentBalance, amount);
           updatePromises.push(updateDoc(fromAccountRef, { balance: newBalance }));
         }
       }
@@ -139,7 +140,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
           const convertedAmount = Number(txData.convertedAmount);
           const amountToRevert = !isNaN(convertedAmount) && convertedAmount !== 0 ? convertedAmount : amount;
           const currentBalance = Number(accountDoc.data().balance) || 0;
-          const newBalance = currentBalance - amountToRevert;
+          const newBalance = subtractMoney(currentBalance, amountToRevert);
           updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
         }
       }
@@ -150,7 +151,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
         const accountDoc = await getDoc(accountRef);
         if (accountDoc.exists()) {
           const currentBalance = Number(accountDoc.data().balance) || 0;
-          const newBalance = currentBalance + amount;
+          const newBalance = addMoney(currentBalance, amount);
           updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
         }
       }
@@ -163,7 +164,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
           const debtDoc = await getDoc(debtRef);
           if (debtDoc.exists()) {
             const currentPaidAmount = Number(debtDoc.data().paidAmount) || 0;
-            const newPaidAmount = Math.max(0, Math.round((currentPaidAmount - amount) * 100) / 100);
+            const newPaidAmount = Math.max(0, subtractMoney(currentPaidAmount, amount));
             updatePromises.push(updateDoc(debtRef, { paidAmount: newPaidAmount }));
           }
         } catch (error) {
@@ -178,7 +179,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
         const accountDoc = await getDoc(accountRef);
         if (accountDoc.exists()) {
           const currentBalance = Number(accountDoc.data().balance) || 0;
-          const newBalance = currentBalance + amount;
+          const newBalance = addMoney(currentBalance, amount);
           updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
         }
       }
@@ -191,7 +192,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
           const debtDoc = await getDoc(debtRef);
           if (debtDoc.exists()) {
             const currentPaidAmount = Number(debtDoc.data().paidAmount) || 0;
-            const newPaidAmount = Math.max(0, Math.round((currentPaidAmount - amount) * 100) / 100);
+            const newPaidAmount = Math.max(0, subtractMoney(currentPaidAmount, amount));
             updatePromises.push(updateDoc(debtRef, { paidAmount: newPaidAmount }));
           }
         } catch (error) {
@@ -207,7 +208,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
         if (accountDoc.exists()) {
           const accountData = accountDoc.data();
           const currentBalance = Number(accountData.balance) || 0;
-          const newBalance = currentBalance + amount;
+          const newBalance = addMoney(currentBalance, amount);
           updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
         } else {
         }
@@ -220,7 +221,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
           const goalDoc = await getDoc(goalRef);
           if (goalDoc.exists()) {
             const currentCurrentAmount = Number(goalDoc.data().currentAmount) || 0;
-            const newCurrentAmount = Math.max(0, Math.round((currentCurrentAmount - amount) * 100) / 100);
+            const newCurrentAmount = Math.max(0, subtractMoney(currentCurrentAmount, amount));
             updatePromises.push(updateDoc(goalRef, { currentAmount: newCurrentAmount }));
           }
         } catch (error) {
@@ -235,7 +236,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
         const accountDoc = await getDoc(accountRef);
         if (accountDoc.exists()) {
           const currentBalance = Number(accountDoc.data().balance) || 0;
-          const newBalance = currentBalance - amount;
+          const newBalance = subtractMoney(currentBalance, amount);
           updatePromises.push(updateDoc(accountRef, { balance: newBalance }));
         }
       }
@@ -247,7 +248,7 @@ export const deleteTransactionAtomic = async (transactionId: string) => {
           const debtDoc = await getDoc(debtRef);
           if (debtDoc.exists()) {
             const currentPaidAmount = Number(debtDoc.data().paidAmount) || 0;
-            const newPaidAmount = Math.max(0, Math.round((currentPaidAmount - amount) * 100) / 100);
+            const newPaidAmount = Math.max(0, subtractMoney(currentPaidAmount, amount));
             updatePromises.push(updateDoc(debtRef, { paidAmount: newPaidAmount }));
           }
         } catch (error) {

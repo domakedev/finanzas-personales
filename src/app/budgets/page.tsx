@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Loader2, Save, Trash2, Plus } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, addMoney, subtractMoney, divideMoney, calcPercent } from '@/lib/utils';
 import { useStore } from '@/lib/store';
 
 export default function BudgetsPage() {
@@ -96,7 +96,7 @@ export default function BudgetsPage() {
           d.getMonth() === currentMonth &&
           d.getFullYear() === currentYear;
       })
-      .reduce((acc, curr) => acc + curr.amount, 0);
+      .reduce((acc, curr) => addMoney(acc, curr.amount), 0);
   };
 
   const monthlyTransactions = transactions.filter(t => {
@@ -106,7 +106,7 @@ export default function BudgetsPage() {
       d.getFullYear() === currentYear;
   });
 
-  const totalSpent = monthlyTransactions.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalSpent = monthlyTransactions.reduce((acc, curr) => addMoney(acc, curr.amount), 0);
 
   // Calculate historical average income from last 6 months
   const calculateHistoricalIncomeAverage = () => {
@@ -121,16 +121,16 @@ export default function BudgetsPage() {
       return transactions
         .filter(t => (t.type === 'INCOME' || t.type === 'RECEIVE_DEBT_PAYMENT') &&
           t.date.getMonth() === month && t.date.getFullYear() === year)
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => addMoney(sum, t.amount), 0);
     }).filter(income => income > 0); // Only months with income
 
     if (monthlyIncomes.length === 0) return 0;
-    return monthlyIncomes.reduce((sum, inc) => sum + inc, 0) / monthlyIncomes.length;
+    return divideMoney(monthlyIncomes.reduce((sum, inc) => addMoney(sum, inc), 0), monthlyIncomes.length);
   };
 
   const historicalIncomeAverage = calculateHistoricalIncomeAverage();
   const incomeNum = parseFloat(income) || 0;
-  const remainingIncome = historicalIncomeAverage - totalSpent;
+  const remainingIncome = subtractMoney(historicalIncomeAverage, totalSpent);
 
   // Filter available categories to add
   const availableCategories = [...TRANSACTION_CATEGORIES, ...categories.filter(c => c.type === 'EXPENSE')]
@@ -242,8 +242,8 @@ export default function BudgetsPage() {
 
               const limit = parseFloat(limits[categoryId]) || 0;
               const spent = calculateSpent(categoryId);
-              const percentage = limit > 0 ? (spent / limit) * 100 : 0;
-              const remaining = limit - spent;
+              const percentage = limit > 0 ? calcPercent(spent, limit) : 0;
+              const remaining = subtractMoney(limit, spent);
 
               let statusColor = "bg-green-500";
               if (percentage > 100) statusColor = "bg-red-500";
