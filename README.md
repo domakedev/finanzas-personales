@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Finanzas Personales
 
-## Getting Started
+Aplicación web para la gestión de finanzas personales, orientada al mercado peruano. Permite administrar cuentas, ingresos, gastos, deudas, metas de ahorro y presupuestos mensuales en soles (PEN) y dólares (USD).
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Frontend:** Next.js 16 + React 19 + TypeScript
+- **Estilos:** Tailwind CSS 4
+- **Base de datos:** Firebase Firestore
+- **Autenticación:** Firebase Auth (Google OAuth)
+- **Estado:** Zustand
+
+## Módulos principales
+
+| Módulo | Descripción |
+|---|---|
+| Dashboard | Patrimonio neto, flujo de caja, salud del presupuesto y resumen general |
+| Cuentas | Bancos, billeteras digitales (Yape/Plin) y efectivo |
+| Transacciones | Ingresos, gastos, transferencias, pagos y cobros |
+| Deudas | Deudas comunes, tarjetas de crédito y préstamos realizados |
+| Metas | Metas de ahorro con seguimiento de progreso |
+| Presupuestos | Límites por categoría de gasto |
+| Categorías | Categorías predefinidas y personalizadas |
+
+## Requisitos previos
+
+- Node.js v18+
+- Proyecto en Firebase con Firestore y Authentication habilitados
+
+## Configuración
+
+Crea un archivo `.env.local` en la raíz con las variables de tu proyecto Firebase:
+
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ver `env.example` como referencia.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Levantar el proyecto
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Abrir [http://localhost:3000](http://localhost:3000) en el navegador.
 
-To learn more about Next.js, take a look at the following resources:
+## Otros comandos
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run build          # Build de producción
+npm run lint           # Linting
+npm run cypress:open   # Abrir Cypress (tests E2E)
+npm run test:e2e       # Ejecutar todos los tests E2E headless
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Documentación
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Negocio](docs/negocio.md) — Flujos, reglas y lógica del dominio
+- [Técnico](docs/tecnico.md) — Arquitectura, modelos y estructura del código
+- [Onboarding](docs/onboarding.md) — Guía para nuevos desarrolladores
