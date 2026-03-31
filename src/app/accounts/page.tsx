@@ -243,7 +243,7 @@ export default function AccountsPage() {
               // Agrupar por semana
               const groupedByWeek: { [key: string]: typeof accountTransactions } = {};
               accountTransactions.forEach(tx => {
-                const txDate = new Date(tx.createdAt);
+                const txDate = new Date(tx.date);
                 const startOfWeek = new Date(txDate);
                 startOfWeek.setDate(txDate.getDate() - txDate.getDay()); // Domingo de esa semana
                 const weekKey = startOfWeek.toISOString().split('T')[0];

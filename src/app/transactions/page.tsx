@@ -9,9 +9,9 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TransactionForm } from '@/components/forms/TransactionForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
-import { deleteTransactionAtomic } from '@/lib/db';
+import { deleteTransactionAtomic, deleteAllTransactionsAndReset } from '@/lib/db';
 import { useAuth } from '@/lib/auth';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, Sprout, HandCoins, ArrowRightLeft, CreditCard, Banknote } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, Sprout, HandCoins, ArrowRightLeft, CreditCard, Banknote } from 'lucide-react';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
@@ -59,7 +59,6 @@ export default function TransactionsPage() {
     return 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700';
   };
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; transactionId: string | null }>({
     isOpen: false,
@@ -70,6 +69,8 @@ export default function TransactionsPage() {
     transaction: null,
   });
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [filterType, setFilterType] = useState<string>('ALL');
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [selectedYear, setSelectedYear] = useState<string>('ALL');
@@ -85,6 +86,10 @@ export default function TransactionsPage() {
   const updateAccountInStore = useStore((state) => state.updateAccount);
   const updateDebtInStore = useStore((state) => state.updateDebt);
   const updateGoalInStore = useStore((state) => state.updateGoal);
+  const setTransactions = useStore((state) => state.setTransactions);
+  const setAccounts = useStore((state) => state.setAccounts);
+  const setDebts = useStore((state) => state.setDebts);
+  const setGoals = useStore((state) => state.setGoals);
 
   const handleDelete = async (transactionId: string) => {
     const transaction = transactions.find(t => t.id === transactionId);
@@ -163,6 +168,23 @@ export default function TransactionsPage() {
     } catch (error: any) {
       console.error("Error deleting transaction:", error);
       alert(`Error al eliminar la transacción: ${error.message || "Error desconocido"}`);
+    }
+  };
+
+  const handleResetAll = async () => {
+    if (!user) return;
+    setIsResetting(true);
+    try {
+      await deleteAllTransactionsAndReset(user.uid);
+      setTransactions([]);
+      setAccounts(accounts.map(acc => ({ ...acc, balance: 0 })));
+      setDebts(debts.map(d => ({ ...d, paidAmount: 0 })));
+      setGoals(goals.map(g => ({ ...g, currentAmount: 0 })));
+    } catch (error: any) {
+      console.error("Error en reset total:", error);
+      alert(`Error al resetear: ${error.message || "Error desconocido"}`);
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -260,9 +282,17 @@ export default function TransactionsPage() {
           <h1 className="text-3xl font-bold">Flujo de Caja</h1>
           <p className="text-muted-foreground">Historial de ingresos y gastos</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} data-testid="new-transaction-button">
-          <Plus className="mr-2 h-4 w-4" /> Nueva Transacción
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setIsResetDialogOpen(true)}
+            className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
+            disabled={isResetting || transactions.length === 0}
+          >
+            {isResetting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+            Reset total
+          </Button>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -536,18 +566,12 @@ export default function TransactionsPage() {
       </Card>
 
       <Modal
-        isOpen={isModalOpen || !!editingTransaction}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingTransaction(null);
-        }}
-        title={editingTransaction ? "Editar Transacción" : "Nueva Transacción"}
+        isOpen={!!editingTransaction}
+        onClose={() => setEditingTransaction(null)}
+        title="Editar Transacción"
       >
         <TransactionForm
-          onSuccess={() => {
-            setIsModalOpen(false);
-            setEditingTransaction(null);
-          }}
+          onSuccess={() => setEditingTransaction(null)}
           transaction={editingTransaction || undefined}
         />
       </Modal>
@@ -584,6 +608,16 @@ export default function TransactionsPage() {
         message="⚠️ Cuidado: Esta acción debería ser automática y no deberías editarla manualmente. Editar transacciones puede afectar los balances de tus cuentas. ¿Continuar?"
         confirmText="Editar"
         isDestructive={false}
+      />
+
+      <ConfirmDialog
+        isOpen={isResetDialogOpen}
+        onClose={() => setIsResetDialogOpen(false)}
+        onConfirm={handleResetAll}
+        title="Reset total"
+        message={`Esto eliminará permanentemente todas las ${transactions.length} transacciones y pondrá todos los saldos de cuentas, deudas y metas en 0. Esta acción es irreversible.`}
+        confirmText="Borrar todo"
+        isDestructive
       />
     </Layout>
   );

@@ -15,9 +15,13 @@ import {
   X,
   LogOut,
   PieChart,
-  Tag
+  Tag,
+  Plus
 } from 'lucide-react';
 import { Button } from './ui/Button';
+import { Modal } from './ui/Modal';
+import { TransactionForm } from '@/components/forms/TransactionForm';
+import { AccountForm } from '@/components/forms/AccountForm';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 import { signOut } from 'firebase/auth';
@@ -30,6 +34,8 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
    const [isDarkMode, setIsDarkMode] = useState(false);
+   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
    const pathname = usePathname();
    const router = useRouter();
    const { user } = useAuth();
@@ -127,6 +133,13 @@ export default function Layout({ children }: LayoutProps) {
 
           <div className="p-4 border-t border-border space-y-2">
             <Button
+              className="w-full justify-start gap-3"
+              onClick={() => { setIsTransactionModalOpen(true); setIsSidebarOpen(false); }}
+            >
+              <Plus className="h-5 w-5" />
+              <span>Nueva Transacción</span>
+            </Button>
+            <Button
               variant="ghost"
               className="w-full justify-start gap-3"
               onClick={toggleTheme}
@@ -164,6 +177,27 @@ export default function Layout({ children }: LayoutProps) {
           {children}
         </div>
       </main>
+      <Modal
+        isOpen={isTransactionModalOpen}
+        onClose={() => setIsTransactionModalOpen(false)}
+        title="Agregar Transacción"
+      >
+        <TransactionForm
+          onSuccess={() => setIsTransactionModalOpen(false)}
+          onRequestCreateAccount={() => {
+            setIsTransactionModalOpen(false);
+            setIsAccountModalOpen(true);
+          }}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+        title="Nueva Cuenta"
+      >
+        <AccountForm onSuccess={() => setIsAccountModalOpen(false)} />
+      </Modal>
     </div>
   );
 }

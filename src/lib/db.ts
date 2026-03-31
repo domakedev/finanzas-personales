@@ -11,7 +11,8 @@ import {
   deleteDoc,
   runTransaction,
   getDoc,
-  Timestamp
+  Timestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { Account, Transaction, Debt, Goal, Budget, Category } from '@/types';
 
@@ -377,4 +378,46 @@ export const updateCategory = async (categoryId: string, category: Partial<Categ
 
 export const deleteCategory = async (categoryId: string) => {
   return deleteDoc(doc(db, 'categories', categoryId));
+};
+
+export const deleteAllTransactionsAndReset = async (userId: string) => {
+  const transactions = await getTransactions(userId);
+
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
+    const batch = writeBatch(db);
+    transactions.slice(i, i + BATCH_SIZE).forEach(tx => {
+      batch.delete(doc(db, 'transactions', tx.id));
+    });
+    await batch.commit();
+  }
+
+  const accounts = await getAccounts(userId);
+  if (accounts.length > 0) {
+    const accountBatch = writeBatch(db);
+    accounts.forEach(acc => {
+      accountBatch.update(doc(db, 'accounts', acc.id), { balance: 0 });
+    });
+    await accountBatch.commit();
+  }
+
+  const debts = await getDebts(userId);
+  if (debts.length > 0) {
+    const debtBatch = writeBatch(db);
+    debts.forEach(debt => {
+      debtBatch.update(doc(db, 'debts', debt.id), { paidAmount: 0 });
+    });
+    await debtBatch.commit();
+  }
+
+  const goals = await getGoals(userId);
+  if (goals.length > 0) {
+    const goalBatch = writeBatch(db);
+    goals.forEach(goal => {
+      goalBatch.update(doc(db, 'goals', goal.id), { currentAmount: 0 });
+    });
+    await goalBatch.commit();
+  }
+
+  return { deletedCount: transactions.length };
 };

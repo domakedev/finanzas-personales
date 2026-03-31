@@ -13,7 +13,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { TransactionForm } from '@/components/forms/TransactionForm';
 import { AccountForm } from '@/components/forms/AccountForm';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
@@ -22,7 +21,6 @@ import { addMoney, subtractMoney, calcPercent } from '@/lib/utils';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
   const {
@@ -152,14 +150,9 @@ export default function Dashboard() {
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">Tu Panorama Financiero</h2>
-            <p className="text-muted-foreground">{monthNameCapitalized} {currentYear}</p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button onClick={() => setIsTransactionModalOpen(true)}>Nueva Transacción</Button>
-          </div>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Tu Panorama Financiero</h2>
+          <p className="text-muted-foreground">{monthNameCapitalized} {currentYear}</p>
         </div>
 
         {/* Key Metrics */}
@@ -357,20 +350,6 @@ export default function Dashboard() {
       </div>
 
       {/* Modals */}
-      <Modal
-        isOpen={isTransactionModalOpen}
-        onClose={() => setIsTransactionModalOpen(false)}
-        title="Agregar Transacción"
-      >
-        <TransactionForm
-          onSuccess={() => setIsTransactionModalOpen(false)}
-          onRequestCreateAccount={() => {
-            setIsTransactionModalOpen(false);
-            setIsAccountModalOpen(true);
-          }}
-        />
-      </Modal>
-
       <Modal
         isOpen={isAccountModalOpen}
         onClose={() => setIsAccountModalOpen(false)}
