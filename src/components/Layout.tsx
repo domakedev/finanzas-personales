@@ -18,6 +18,7 @@ import {
   Tag,
   Plus
 } from 'lucide-react';
+import { QuickAddTransaction } from './QuickAddTransaction'
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { TransactionForm } from '@/components/forms/TransactionForm';
@@ -177,6 +178,7 @@ export default function Layout({ children }: LayoutProps) {
           {children}
         </div>
       </main>
+      <QuickAddTransaction />
       <Modal
         isOpen={isTransactionModalOpen}
         onClose={() => setIsTransactionModalOpen(false)}

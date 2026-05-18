@@ -11,8 +11,9 @@ import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import Image from 'next/image';
 import { useStore } from '@/lib/store';
 import { deleteAccount } from '@/lib/db';
-import { Plus, Wallet, Banknote, CreditCard, Trash2, Pencil, Loader2, Eye } from 'lucide-react';
+import { Plus, Wallet, Banknote, CreditCard, Trash2, Pencil, Loader2, Eye, Scale } from 'lucide-react';
 import { Account } from '@/types';
+import { ReconciliationPanel } from '@/components/ReconciliationPanel';
 export default function AccountsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -28,6 +29,10 @@ export default function AccountsPage() {
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const [editingIds, setEditingIds] = useState<string[]>([]);
   const [historyModal, setHistoryModal] = useState<{ isOpen: boolean; account: Account | null }>({
+    isOpen: false,
+    account: null,
+  });
+  const [reconcileModal, setReconcileModal] = useState<{ isOpen: boolean; account: Account | null }>({
     isOpen: false,
     account: null,
   });
@@ -103,6 +108,16 @@ export default function AccountsPage() {
                   data-testid={`view-history-account-${account.name}`}
                 >
                   <Eye className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-violet-500 hover:text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-900/30"
+                  onClick={() => setReconcileModal({ isOpen: true, account })}
+                  title="Reconciliar cuenta"
+                  data-testid={`reconcile-account-${account.name}`}
+                >
+                  <Scale className="h-3 w-3" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -340,6 +355,19 @@ export default function AccountsPage() {
             })()}
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={reconcileModal.isOpen}
+        onClose={() => setReconcileModal({ isOpen: false, account: null })}
+        title={`Reconciliar - ${reconcileModal.account?.name || ''}`}
+      >
+        {reconcileModal.account && (
+          <ReconciliationPanel 
+            account={reconcileModal.account} 
+            onClose={() => setReconcileModal({ isOpen: false, account: null })} 
+          />
+        )}
       </Modal>
     </Layout>
   );

@@ -10,8 +10,8 @@ import { DebtForm } from '@/components/forms/DebtForm';
 import { CreditCardForm } from '@/components/forms/CreditCardForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
-import { deleteDebt, getTransactions } from '@/lib/db';
-import { Plus, AlertCircle, Trash2, Pencil, Loader2, Eye, ArrowUpRight, ArrowDownLeft, Sprout, HandCoins, ArrowRightLeft, CreditCard, Banknote } from 'lucide-react';
+import { deleteDebt, getTransactions, resetCreditCard } from '@/lib/db';
+import { Plus, AlertCircle, Trash2, Pencil, Loader2, Eye, ArrowUpRight, ArrowDownLeft, Sprout, HandCoins, ArrowRightLeft, CreditCard, Banknote, RotateCcw } from 'lucide-react';
 import { Debt, Transaction } from '@/types';
 import { format } from 'date-fns';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
@@ -32,6 +32,8 @@ export default function DebtsPage() {
   const [isCreditCardModalOpen, setIsCreditCardModalOpen] = useState(false);
   const [isTransactionsModalOpen, setIsTransactionsModalOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [resetConfirm, setResetConfirm] = useState<{ isOpen: boolean; debtId: string | null; debtName: string }>({ isOpen: false, debtId: null, debtName: '' });
+  const [isResettingCard, setIsResettingCard] = useState(false);
   const debts = useStore((state) => state.debts);
   const transactions = useStore((state) => state.transactions);
   const accounts = useStore((state) => state.accounts);
@@ -194,6 +196,16 @@ export default function DebtsPage() {
                         data-testid={`view-history-credit-card-${debt.name}`}
                       >
                         <Eye className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/30"
+                        onClick={() => setResetConfirm({ isOpen: true, debtId: debt.id, debtName: debt.name })}
+                        title="Reiniciar tarjeta (poner en 0)"
+                        data-testid={`reset-credit-card-${debt.name}`}
+                      >
+                        <RotateCcw className="h-3 w-3" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -648,6 +660,31 @@ export default function DebtsPage() {
         title="Eliminar Deuda"
         message="⚠️ Cuidado: Esta acción debería ser automática y no deberías editarla manualmente. ¿Estás seguro de eliminar este registro de deuda?"
         confirmText="Eliminar"
+        isDestructive={true}
+      />
+
+      <ConfirmDialog
+        isOpen={resetConfirm.isOpen}
+        onClose={() => setResetConfirm({ isOpen: false, debtId: null, debtName: '' })}
+        onConfirm={async () => {
+          if (resetConfirm.debtId) {
+            setIsResettingCard(true);
+            try {
+              await resetCreditCard(resetConfirm.debtId);
+              const updateDebt = useStore.getState().updateDebt;
+              updateDebt(resetConfirm.debtId, { totalAmount: 0, paidAmount: 0 });
+            } catch (error: any) {
+              console.error("Error resetting credit card:", error);
+              alert(`Error al reiniciar la tarjeta: ${error.message || "Error desconocido"}`);
+            } finally {
+              setIsResettingCard(false);
+            }
+          }
+          setResetConfirm({ isOpen: false, debtId: null, debtName: '' });
+        }}
+        title="Reiniciar Tarjeta de Crédito"
+        message={`¿Estás seguro de reiniciar "${resetConfirm.debtName}"? Esto pondrá el saldo usado y pagado en S/ 0.00. Las transacciones históricas NO se eliminarán. Útil para comenzar un nuevo ciclo de facturación.`}
+        confirmText="Reiniciar"
         isDestructive={true}
       />
     </Layout>

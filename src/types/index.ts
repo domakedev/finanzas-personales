@@ -24,6 +24,23 @@ export interface Transaction {
   convertedAmount?: number; // Converted amount for destination account
   fromCurrency?: string; // Source currency for transfers
   toCurrency?: string; // Destination currency for transfers
+  isVerified?: boolean; // For reconciliation: true = user confirmed this matches bank statement
+}
+
+// AI-parsed transaction suggestion from voice/text input
+export interface ParsedTransaction {
+  id: string; // Temporary client-side ID for UI tracking
+  amount: number;
+  description: string;
+  date: string; // YYYY-MM-DD format
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'PAY_DEBT' | 'SAVE_FOR_GOAL' | 'PAY_CREDIT_CARD' | 'RECEIVE_DEBT_PAYMENT';
+  categoryId?: string;
+  accountId?: string; // May be empty if AI couldn't determine
+  fromAccountId?: string;
+  debtId?: string;
+  goalId?: string;
+  confidence: number; // 0-1 how confident the AI is
+  aiNote?: string; // Optional note from AI explaining its reasoning
 }
 
 export interface Debt {

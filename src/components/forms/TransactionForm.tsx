@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Transaction } from "@/types";
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from "@/constants/categories";
+import { addMoney } from "@/lib/utils";
 
 interface TransactionFormProps {
   onSuccess: () => void;
@@ -370,7 +371,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       const balanceChanges = new Map<string, number>();
       const getChange = (id: string) => balanceChanges.get(id) || 0;
       const addChange = (id: string, amount: number) =>
-        balanceChanges.set(id, getChange(id) + amount);
+        balanceChanges.set(id, addMoney(getChange(id), amount));
 
       // 1. If editing, REVERT original transaction effects
       if (transaction) {
@@ -434,7 +435,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         const account = accounts.find((a) => a.id === accountId);
         if (!account) continue;
 
-        const newBalance = account.balance + change;
+        const newBalance = addMoney(account.balance, change);
 
         // Update Store
         updateAccount(accountId, { balance: newBalance });

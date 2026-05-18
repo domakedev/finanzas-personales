@@ -9,9 +9,9 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TransactionForm } from '@/components/forms/TransactionForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
-import { deleteTransactionAtomic, deleteAllTransactionsAndReset } from '@/lib/db';
+import { deleteTransactionAtomic, deleteAllTransactionsAndReset, verifyTransaction, unverifyTransaction } from '@/lib/db';
 import { useAuth } from '@/lib/auth';
-import { ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, Sprout, HandCoins, ArrowRightLeft, CreditCard, Banknote } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, Sprout, HandCoins, ArrowRightLeft, CreditCard, Banknote, CheckCircle2, Circle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
@@ -75,6 +75,7 @@ export default function TransactionsPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [selectedYear, setSelectedYear] = useState<string>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [showOnlyUnverified, setShowOnlyUnverified] = useState(false);
   const { user: authUser } = useAuth();
   const user = useStore((state) => state.user) || authUser;
   const transactions = useStore((state) => state.transactions);
@@ -86,6 +87,7 @@ export default function TransactionsPage() {
   const updateAccountInStore = useStore((state) => state.updateAccount);
   const updateDebtInStore = useStore((state) => state.updateDebt);
   const updateGoalInStore = useStore((state) => state.updateGoal);
+  const updateTransactionInStore = useStore((state) => state.updateTransaction);
   const setTransactions = useStore((state) => state.setTransactions);
   const setAccounts = useStore((state) => state.setAccounts);
   const setDebts = useStore((state) => state.setDebts);
@@ -252,8 +254,9 @@ export default function TransactionsPage() {
     const matchesMonth = selectedMonth === 'ALL' || tx.date.getMonth() === parseInt(selectedMonth);
     const matchesYear = selectedYear === 'ALL' || tx.date.getFullYear() === parseInt(selectedYear);
     const matchesCategory = selectedCategory === 'ALL' || tx.categoryId === selectedCategory;
-    return matchesType && matchesMonth && matchesYear && matchesCategory;
-  }), [transactions, filterType, selectedMonth, selectedYear, selectedCategory]);
+    const matchesVerified = !showOnlyUnverified || !tx.isVerified;
+    return matchesType && matchesMonth && matchesYear && matchesCategory && matchesVerified;
+  }), [transactions, filterType, selectedMonth, selectedYear, selectedCategory, showOnlyUnverified]);
 
   // Calcular total
   const totalAmount = useMemo(() => filteredTransactions.reduce((sum, tx) => {
@@ -306,6 +309,17 @@ export default function TransactionsPage() {
             <Button className={getFilterButtonClass('PAY_CREDIT_CARD')} onClick={() => setFilterType('PAY_CREDIT_CARD')}>Pago TC</Button>
             <Button className={getFilterButtonClass('SAVE_FOR_GOAL')} onClick={() => setFilterType('SAVE_FOR_GOAL')}>Ahorro Meta</Button>
             <Button className={getFilterButtonClass('RECEIVE_DEBT_PAYMENT')} onClick={() => setFilterType('RECEIVE_DEBT_PAYMENT')}>Cobro Préstamo</Button>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none text-sm">
+              <input
+                type="checkbox"
+                checked={showOnlyUnverified}
+                onChange={(e) => setShowOnlyUnverified(e.target.checked)}
+                className="rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+              />
+              <span className="text-muted-foreground">Solo no verificadas</span>
+            </label>
           </div>
           <div className="flex gap-2">
             <div className="">
@@ -537,6 +551,30 @@ export default function TransactionsPage() {
                           {getAmountDisplay()}
                         </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-8 w-8 transition-colors ${tx.isVerified
+                          ? 'text-green-500 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900'
+                          : 'text-gray-400 dark:text-gray-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900'
+                          }`}
+                        onClick={async () => {
+                          try {
+                            if (tx.isVerified) {
+                              await unverifyTransaction(tx.id);
+                              updateTransactionInStore(tx.id, { isVerified: false });
+                            } else {
+                              await verifyTransaction(tx.id);
+                              updateTransactionInStore(tx.id, { isVerified: true });
+                            }
+                          } catch (err) {
+                            console.error('Error toggling verification:', err);
+                          }
+                        }}
+                        title={tx.isVerified ? 'Marcar como no verificada' : 'Marcar como verificada'}
+                      >
+                        {tx.isVerified ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"

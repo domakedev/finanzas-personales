@@ -421,3 +421,45 @@ export const deleteAllTransactionsAndReset = async (userId: string) => {
 
   return { deletedCount: transactions.length };
 };
+
+// Batch add multiple transactions at once (for Quick Add with AI)
+export const batchAddTransactions = async (userId: string, transactions: Omit<Transaction, 'id'>[]) => {
+  const BATCH_SIZE = 500;
+  const docRefs: { id: string }[] = [];
+
+  for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
+    const batch = writeBatch(db);
+    const chunk = transactions.slice(i, i + BATCH_SIZE);
+
+    for (const tx of chunk) {
+      const docRef = doc(collection(db, 'transactions'));
+      batch.set(docRef, {
+        ...tx,
+        userId,
+        date: Timestamp.fromDate(tx.date),
+        createdAt: Timestamp.now(),
+        isVerified: false,
+      });
+      docRefs.push({ id: docRef.id });
+    }
+
+    await batch.commit();
+  }
+
+  return docRefs;
+};
+
+// Verify/unverify a transaction (for reconciliation)
+export const verifyTransaction = async (transactionId: string) => {
+  return updateDoc(doc(db, 'transactions', transactionId), { isVerified: true });
+};
+
+export const unverifyTransaction = async (transactionId: string) => {
+  return updateDoc(doc(db, 'transactions', transactionId), { isVerified: false });
+};
+
+// Reset a credit card (zero out totalAmount and paidAmount)
+export const resetCreditCard = async (debtId: string) => {
+  return updateDoc(doc(db, 'debts', debtId), { totalAmount: 0, paidAmount: 0 });
+};
+
