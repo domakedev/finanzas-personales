@@ -449,6 +449,34 @@ export const batchAddTransactions = async (userId: string, transactions: Omit<Tr
   return docRefs;
 };
 
+// "Ponerme al día": create one adjustment transaction per account and set the new balances,
+// all in a single atomic batch so balances and transactions never get out of sync.
+export interface BalanceAdjustment {
+  accountId: string;
+  newBalance: number;
+  transaction: Omit<Transaction, 'id'>;
+}
+
+export const applyBalanceAdjustments = async (userId: string, adjustments: BalanceAdjustment[]) => {
+  const batch = writeBatch(db);
+  const created: Transaction[] = [];
+
+  for (const adj of adjustments) {
+    const txRef = doc(collection(db, 'transactions'));
+    batch.set(txRef, {
+      ...adj.transaction,
+      userId,
+      date: Timestamp.fromDate(adj.transaction.date),
+      createdAt: Timestamp.now(),
+    });
+    batch.update(doc(db, 'accounts', adj.accountId), { balance: adj.newBalance });
+    created.push({ ...adj.transaction, id: txRef.id });
+  }
+
+  await batch.commit();
+  return created;
+};
+
 // Verify/unverify a transaction (for reconciliation)
 export const verifyTransaction = async (transactionId: string) => {
   return updateDoc(doc(db, 'transactions', transactionId), { isVerified: true });

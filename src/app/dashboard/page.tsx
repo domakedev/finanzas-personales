@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { QuickStatsCard } from '@/components/dashboard/QuickStatsCard';
 import { RecentTransactionsList } from '@/components/dashboard/RecentTransactionsList';
@@ -8,7 +9,7 @@ import { CategorySpendingBar } from '@/components/dashboard/CategorySpendingBar'
 import { SavingsTree } from '@/components/SavingsTree';
 import {
   Wallet, CreditCard, TrendingUp, TrendingDown, DollarSign,
-  PiggyBank, AlertCircle, Target, Calendar
+  PiggyBank, AlertCircle, Target, Calendar, RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -146,6 +147,15 @@ export default function Dashboard() {
 
   const totalExpenses = categorySpending.reduce((sum, cat) => addMoney(sum, cat.spent), 0);
 
+  // Days since the last real (non-adjustment) transaction; nudges the user to catch up after a long absence
+  const daysSinceLastTx = (() => {
+    const real = transactions.filter(t => !t.isAdjustment);
+    if (real.length === 0) return null;
+    const last = real.reduce((max, t) => (t.date > max ? t.date : max), real[0].date);
+    return Math.floor((Date.now() - last.getTime()) / (1000 * 60 * 60 * 24));
+  })();
+  const showCatchUp = accounts.length > 0 && daysSinceLastTx !== null && daysSinceLastTx >= 7;
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -154,6 +164,27 @@ export default function Dashboard() {
           <h2 className="text-3xl font-bold tracking-tight">Tu Panorama Financiero</h2>
           <p className="text-muted-foreground">{monthNameCapitalized} {currentYear}</p>
         </div>
+
+        {showCatchUp && (
+          <Card className="border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800">
+            <CardContent className="pt-5 pb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <RefreshCw className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-amber-900 dark:text-amber-200">
+                    Llevas {daysSinceLastTx} días sin registrar movimientos
+                  </p>
+                  <p className="text-amber-800/80 dark:text-amber-300/80">
+                    Tus saldos probablemente ya no coinciden con el banco. Ponte al día en dos minutos sin registrar cada gasto.
+                  </p>
+                </div>
+              </div>
+              <Link href="/catch-up" className="sm:flex-shrink-0">
+                <Button variant="outline" className="w-full sm:w-auto bg-white/60 dark:bg-black/20">Ponerme al día</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Key Metrics */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

@@ -25,6 +25,7 @@ export interface Transaction {
   fromCurrency?: string; // Source currency for transfers
   toCurrency?: string; // Destination currency for transfers
   isVerified?: boolean; // For reconciliation: true = user confirmed this matches bank statement
+  isAdjustment?: boolean; // Created by "Ponerme al día": balance adjustment the user may split into real transactions later
 }
 
 // AI-parsed transaction suggestion from voice/text input

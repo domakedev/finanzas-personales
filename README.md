@@ -21,6 +21,7 @@ Aplicación web para la gestión de finanzas personales, orientada al mercado pe
 | Metas | Metas de ahorro con seguimiento de progreso |
 | Presupuestos | Límites por categoría de gasto |
 | Categorías | Categorías predefinidas y personalizadas |
+| Ponerme al día | Reconciliación rápida: escribe el saldo real de cada cuenta y la app crea los ajustes |
 
 ## Requisitos previos
 

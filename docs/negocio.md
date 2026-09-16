@@ -117,6 +117,16 @@ Categorías de ingreso del sistema: Sueldo, otros.
 
 ---
 
+### Flujo "Ponerme al día" (reconciliación de saldos)
+Pensado para cuando el usuario vuelve tras semanas sin registrar nada y no quiere cargar cada movimiento.
+
+1. El usuario entra a **Ponerme al día** (o desde el aviso del dashboard, que aparece tras 7 días sin movimientos).
+2. Ve todas sus cuentas con el saldo que la app calcula y escribe, por cada una, el saldo real que muestra su banco o billetera.
+3. La app calcula la diferencia por cuenta. Con un solo botón crea **un ajuste por cuenta** (ingreso si el saldo real es mayor, gasto si es menor) con fecha elegida por el usuario y actualiza los saldos, todo en una sola operación atómica.
+4. Los ajustes quedan marcados (`isAdjustment: true`, categoría "Otro" / "Otro ingreso", verificados) y se pueden borrar después para reemplazarlos por los movimientos reales si el usuario quiere desglosarlos.
+
+---
+
 ## Reglas de negocio importantes
 
 - Cada usuario solo ve y modifica sus propios datos (aislamiento por `userId`).

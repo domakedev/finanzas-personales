@@ -16,7 +16,8 @@ import {
   LogOut,
   PieChart,
   Tag,
-  Plus
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 import { QuickAddTransaction } from './QuickAddTransaction'
 import { Button } from './ui/Button';
@@ -82,6 +83,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Metas', href: '/goals', icon: Sprout },
     { name: 'Presupuestos', href: '/budgets', icon: PieChart },
     { name: 'Categorías', href: '/categories', icon: Tag },
+    { name: 'Ponerme al día', href: '/catch-up', icon: RefreshCw },
   ];
 
   return (
