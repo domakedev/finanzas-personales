@@ -8,12 +8,13 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DebtForm } from '@/components/forms/DebtForm';
 import { CreditCardForm } from '@/components/forms/CreditCardForm';
+import { TransactionForm } from '@/components/forms/TransactionForm';
 import { LoadingFinance } from '@/components/ui/LoadingFinance';
 import { useStore } from '@/lib/store';
 import { deleteDebt, getTransactions, resetCreditCard } from '@/lib/db';
 import { Plus, AlertCircle, Trash2, Pencil, Loader2, Eye, ArrowUpRight, ArrowDownLeft, Sprout, HandCoins, ArrowRightLeft, CreditCard, Banknote, RotateCcw } from 'lucide-react';
 import { Debt, Transaction } from '@/types';
-import { format } from 'date-fns';
+import { format, differenceInCalendarDays } from 'date-fns';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
 
 export default function DebtsPage() {
@@ -34,6 +35,7 @@ export default function DebtsPage() {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState<{ isOpen: boolean; debtId: string | null; debtName: string }>({ isOpen: false, debtId: null, debtName: '' });
   const [isResettingCard, setIsResettingCard] = useState(false);
+  const [payingCard, setPayingCard] = useState<Debt | null>(null);
   const debts = useStore((state) => state.debts);
   const transactions = useStore((state) => state.transactions);
   const accounts = useStore((state) => state.accounts);
@@ -114,7 +116,15 @@ export default function DebtsPage() {
               const creditLimit = debt.creditLimit || debt.totalAmount; // Fallback si no hay límite definido
               const usedCredit = debt.totalAmount - (debt.paidAmount || 0); // Crédito usado restante
               const availableCredit = creditLimit - usedCredit;
-              const usagePercentage = (usedCredit / creditLimit) * 100;
+              const usagePercentage = creditLimit > 0 ? (usedCredit / creditLimit) * 100 : 0;
+              const nextPayment = (() => {
+                if (!debt.paymentDate) return null;
+                const today = new Date();
+                let d = new Date(today.getFullYear(), today.getMonth(), debt.paymentDate);
+                if (differenceInCalendarDays(d, today) < 0) d = new Date(today.getFullYear(), today.getMonth() + 1, debt.paymentDate);
+                return { date: d, days: differenceInCalendarDays(d, today) };
+              })();
+              const sym = debt.currency === 'USD' ? '$' : 'S/';
 
               // Color de la barra según el uso
               const getUsageColor = () => {
@@ -202,7 +212,7 @@ export default function DebtsPage() {
                         size="icon"
                         className="h-6 w-6 text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/30"
                         onClick={() => setResetConfirm({ isOpen: true, debtId: debt.id, debtName: debt.name })}
-                        title="Reiniciar tarjeta (poner en 0)"
+                        title="Poner la deuda en 0 (ya pagaste todo)"
                         data-testid={`reset-credit-card-${debt.name}`}
                       >
                         <RotateCcw className="h-3 w-3" />
@@ -253,16 +263,46 @@ export default function DebtsPage() {
                       {usagePercentage.toFixed(0)}%
                     </p>
 
-                    {debt.cutoffDate && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Día de corte: {debt.cutoffDate} de cada mes
-                      </p>
-                    )}
-                    {debt.paymentDate && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Día de pago: {debt.paymentDate} de cada mes
-                      </p>
-                    )}
+                    <div className="grid grid-cols-2 gap-3 mt-3 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Disponible</p>
+                        <p className="font-semibold">{sym} {Math.max(0, availableCredit).toFixed(2)}</p>
+                      </div>
+                      {(debt.totalPayment || debt.minimumPayment) ? (
+                        <div>
+                          <p className="text-muted-foreground">Pago del mes</p>
+                          <p className="font-semibold">
+                            {debt.totalPayment ? `${sym} ${debt.totalPayment.toFixed(2)}` : '—'}
+                            {debt.minimumPayment ? <span className="text-muted-foreground font-normal"> · mín. {sym} {debt.minimumPayment.toFixed(2)}</span> : null}
+                          </p>
+                        </div>
+                      ) : null}
+                      {nextPayment && (
+                        <div>
+                          <p className="text-muted-foreground">Próximo pago</p>
+                          <p className="font-semibold">
+                            {format(nextPayment.date, 'dd/MM')}
+                            <span className="text-muted-foreground font-normal"> · {nextPayment.days === 0 ? 'hoy' : `en ${nextPayment.days} ${nextPayment.days === 1 ? 'día' : 'días'}`}</span>
+                          </p>
+                        </div>
+                      )}
+                      {debt.cutoffDate && (
+                        <div>
+                          <p className="text-muted-foreground">Día de corte</p>
+                          <p className="font-semibold">{debt.cutoffDate} de cada mes</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <Button
+                      size="sm"
+                      className="w-full mt-4"
+                      disabled={usedCredit <= 0}
+                      onClick={() => setPayingCard(debt)}
+                      data-testid={`pay-credit-card-${debt.name}`}
+                    >
+                      <Banknote className="h-4 w-4 mr-2" /> {usedCredit <= 0 ? 'Sin deuda' : 'Pagar tarjeta'}
+                    </Button>
                   </CardContent>
                 </Card>
               );
@@ -662,6 +702,24 @@ export default function DebtsPage() {
         confirmText="Eliminar"
         isDestructive={true}
       />
+
+      <Modal
+        isOpen={payingCard !== null}
+        onClose={() => setPayingCard(null)}
+        title={`Pagar ${payingCard?.name || 'tarjeta'}`}
+      >
+        {payingCard && (
+          <TransactionForm
+            defaults={{
+              type: 'PAY_CREDIT_CARD',
+              debtId: payingCard.id,
+              amount: payingCard.totalPayment || undefined,
+              description: `Pago ${payingCard.name}`,
+            }}
+            onSuccess={() => setPayingCard(null)}
+          />
+        )}
+      </Modal>
 
       <ConfirmDialog
         isOpen={resetConfirm.isOpen}

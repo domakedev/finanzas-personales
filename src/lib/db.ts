@@ -449,28 +449,33 @@ export const batchAddTransactions = async (userId: string, transactions: Omit<Tr
   return docRefs;
 };
 
-// "Ponerme al día": create one adjustment transaction per account and set the new balances,
-// all in a single atomic batch so balances and transactions never get out of sync.
-export interface BalanceAdjustment {
-  accountId: string;
-  newBalance: number;
-  transaction: Omit<Transaction, 'id'>;
+// "Ponerme al día": write adjustment transactions, new account balances and debt updates
+// in a single atomic batch so nothing can end up half-applied.
+export interface CatchUpBatch {
+  transactions: Omit<Transaction, 'id'>[];
+  accountUpdates: { id: string; balance: number }[];
+  debtUpdates: { id: string; data: Partial<Debt> }[];
 }
 
-export const applyBalanceAdjustments = async (userId: string, adjustments: BalanceAdjustment[]) => {
+export const applyCatchUp = async (userId: string, input: CatchUpBatch) => {
   const batch = writeBatch(db);
   const created: Transaction[] = [];
 
-  for (const adj of adjustments) {
+  for (const tx of input.transactions) {
     const txRef = doc(collection(db, 'transactions'));
     batch.set(txRef, {
-      ...adj.transaction,
+      ...tx,
       userId,
-      date: Timestamp.fromDate(adj.transaction.date),
+      date: Timestamp.fromDate(tx.date),
       createdAt: Timestamp.now(),
     });
-    batch.update(doc(db, 'accounts', adj.accountId), { balance: adj.newBalance });
-    created.push({ ...adj.transaction, id: txRef.id });
+    created.push({ ...tx, id: txRef.id });
+  }
+  for (const acc of input.accountUpdates) {
+    batch.update(doc(db, 'accounts', acc.id), { balance: acc.balance });
+  }
+  for (const d of input.debtUpdates) {
+    batch.update(doc(db, 'debts', d.id), d.data);
   }
 
   await batch.commit();

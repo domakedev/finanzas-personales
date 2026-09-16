@@ -23,7 +23,7 @@ export const TransactionSchema = z.object({
   exchangeRate: z.coerce.number().positive().optional(), // For cross-currency transfers
 });
 
-export const DebtSchema = z.object({
+const DebtBaseSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   totalAmount: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
   paidAmount: z.coerce.number().min(0, "El monto pagado no puede ser negativo").optional(),
@@ -44,7 +44,9 @@ export const DebtSchema = z.object({
   cutoffDate: z.coerce.number().min(1).max(31).optional(),
   minimumPayment: z.coerce.number().min(0).optional(),
   totalPayment: z.coerce.number().min(0).optional(),
-}).refine((data) => {
+});
+
+export const DebtSchema = DebtBaseSchema.refine((data) => {
   // Solo validar paidAmount si existe
   if (data.paidAmount !== undefined) {
     return data.paidAmount <= data.totalAmount;
@@ -53,6 +55,11 @@ export const DebtSchema = z.object({
 }, {
   message: "El monto pagado no puede exceder el total de la deuda",
   path: ["paidAmount"],
+});
+
+// Credit cards are edited by "what I owe today"; the form converts it to totalAmount/paidAmount.
+export const CreditCardSchema = DebtBaseSchema.omit({ totalAmount: true, paidAmount: true }).extend({
+  currentDebt: z.coerce.number().min(0, "La deuda no puede ser negativa"),
 });
 
 export const GoalSchema = z.object({

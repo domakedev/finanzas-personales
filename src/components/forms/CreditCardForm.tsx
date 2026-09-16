@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { DebtSchema } from '@/lib/schemas';
+import { CreditCardSchema } from '@/lib/schemas';
 import { Button } from '@/components/ui/Button';
 import { useStore } from '@/lib/store';
 import { addDebt, updateDebt } from '@/lib/db';
 import { useAuth } from '@/lib/auth';
 import { Loader2 } from 'lucide-react';
+import { addMoney, subtractMoney } from '@/lib/utils';
 import { Debt } from '@/types';
 import { BANKS, DIGITAL_WALLETS } from '@/constants/categories';
 import { OptionSelector } from '@/components/ui/OptionSelector';
@@ -26,11 +27,14 @@ export const CreditCardForm: React.FC<CreditCardFormProps> = ({ onSuccess, debt 
   const [selectedOption, setSelectedOption] = useState<string>(debt?.name || '');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // What the user actually owes today (charges minus payments)
+  const currentDebtValue = debt ? subtractMoney(debt.totalAmount, debt.paidAmount || 0) : 0;
+
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm({
-    resolver: zodResolver(DebtSchema),
+    resolver: zodResolver(CreditCardSchema),
     defaultValues: {
       name: debt?.name || '',
-      totalAmount: debt?.totalAmount || 0,
+      currentDebt: currentDebtValue,
       currency: debt?.currency || 'PEN',
       creditLimit: debt?.creditLimit || 0,
       creditCardType: debt?.creditCardType || 'BANK',
@@ -48,8 +52,8 @@ export const CreditCardForm: React.FC<CreditCardFormProps> = ({ onSuccess, debt 
   const creditCardType = watch('creditCardType');
   const lastFourDigits = watch('lastFourDigits');
   const creditLimit = Number(watch('creditLimit')) || 0;
-  const totalAmount = Number(watch('totalAmount')) || 0;
-  const isExceeded = totalAmount > creditLimit && creditLimit > 0;
+  const currentDebt = Number(watch('currentDebt')) || 0;
+  const isExceeded = currentDebt > creditLimit && creditLimit > 0;
 
   const handleOptionSelect = (option: { id: string; name: string; logo?: string; icon?: string; type: string }) => {
     setSelectedOption(option.name);
@@ -71,7 +75,12 @@ export const CreditCardForm: React.FC<CreditCardFormProps> = ({ onSuccess, debt 
     setSubmitError(null);
     try {
       // Handle optional fields - remove if empty or undefined
-      const debtData = { ...data };
+      const { currentDebt: newCurrentDebt, ...debtData } = { ...data };
+
+      // Keep the payments history and move totalAmount so that (totalAmount - paidAmount) = what the user owes today
+      const paidAmount = debt?.paidAmount || 0;
+      debtData.paidAmount = paidAmount;
+      debtData.totalAmount = addMoney(paidAmount, Number(newCurrentDebt) || 0);
 
       // Remove undefined or empty string values (but keep 0 as valid value)
       Object.keys(debtData).forEach(key => {
@@ -212,16 +221,17 @@ export const CreditCardForm: React.FC<CreditCardFormProps> = ({ onSuccess, debt 
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Deuda Total</label>
+          <label className="text-sm font-medium">Deuda actual (lo que debes hoy)</label>
           <input
             type="number"
             step="0.01"
-            {...register('totalAmount')}
+            {...register('currentDebt')}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             placeholder="0.00"
             data-testid="credit-card-debt-input"
           />
-          {errors.totalAmount && <p className="text-xs text-red-500">{errors.totalAmount.message}</p>}
+          {errors.currentDebt && <p className="text-xs text-red-500">{errors.currentDebt.message}</p>}
+          <p className="text-xs text-muted-foreground">Copia el saldo deudor que muestra tu banco. Puede ser 0.</p>
           {isExceeded && (
             <p className="text-xs text-amber-600 font-medium">⚠️ La deuda no puede exceder el límite de crédito</p>
           )}

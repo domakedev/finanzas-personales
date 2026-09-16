@@ -23,12 +23,14 @@ interface TransactionFormProps {
   onSuccess: () => void;
   onRequestCreateAccount?: () => void;
   transaction?: Transaction; // For editing
+  defaults?: Partial<Pick<TransactionFormData, 'type' | 'debtId' | 'accountId' | 'amount' | 'description' | 'goalId'>>; // Preset for new transactions
 }
 
 export const TransactionForm: React.FC<TransactionFormProps> = ({
   onSuccess,
   onRequestCreateAccount,
   transaction,
+  defaults,
 }) => {
   const { user: authUser } = useAuth();
   const user = useStore((state) => state.user) || authUser;
@@ -79,6 +81,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           const day = String(today.getDate()).padStart(2, "0");
           return `${year}-${month}-${day}`;
         })(), // Format YYYY-MM-DD for input type="date" using local date
+        ...defaults,
       },
   });
 

@@ -117,13 +117,25 @@ Categorías de ingreso del sistema: Sueldo, otros.
 
 ---
 
-### Flujo "Ponerme al día" (reconciliación de saldos)
+### Flujo "Ponerme al día" (reconciliación de saldos y deudas)
 Pensado para cuando el usuario vuelve tras semanas sin registrar nada y no quiere cargar cada movimiento.
 
 1. El usuario entra a **Ponerme al día** (o desde el aviso del dashboard, que aparece tras 7 días sin movimientos).
-2. Ve todas sus cuentas con el saldo que la app calcula y escribe, por cada una, el saldo real que muestra su banco o billetera.
-3. La app calcula la diferencia por cuenta. Con un solo botón crea **un ajuste por cuenta** (ingreso si el saldo real es mayor, gasto si es menor) con fecha elegida por el usuario y actualiza los saldos, todo en una sola operación atómica.
-4. Los ajustes quedan marcados (`isAdjustment: true`, categoría "Otro" / "Otro ingreso", verificados) y se pueden borrar después para reemplazarlos por los movimientos reales si el usuario quiere desglosarlos.
+2. Ve sus cuentas, tarjetas de crédito, deudas y préstamos con el valor que la app calcula, y escribe el valor real que muestra su banco: saldo (cuentas), deuda actual (tarjetas) o saldo pendiente (deudas y "me deben"). Lo que deja en blanco no se toca.
+3. Con un solo botón la app corrige todo en una operación atómica:
+   - **Cuenta:** crea un ajuste (ingreso o gasto) y fija el saldo.
+   - **Tarjeta:** si la deuda real es mayor, crea un gasto cargado a la tarjeta (consumos sin registrar); si es menor, lo cuenta como pago ya realizado.
+   - **Deuda / Me deben:** si el pendiente real es menor, lo cuenta como pago o cobro; si es mayor, aumenta el total (intereses u otros).
+4. Los movimientos creados quedan marcados (`isAdjustment: true`, categoría "Otro" / "Otro ingreso", verificados) y se pueden borrar después para reemplazarlos por los movimientos reales.
+
+---
+
+### Tarjetas de crédito: modelo y uso
+Internamente una tarjeta guarda `totalAmount` (consumos acumulados) y `paidAmount` (pagos acumulados). **La deuda actual es la resta.**
+
+- Al crear o editar una tarjeta el usuario escribe la **deuda actual** (puede ser 0); la app recalcula `totalAmount` conservando el historial de pagos.
+- Cada tarjeta muestra deuda actual, crédito disponible, pago del mes (total y mínimo) y días hasta el próximo pago, y tiene un botón **Pagar tarjeta** que abre el formulario ya configurado como `PAY_CREDIT_CARD` con el pago del mes sugerido.
+- Un gasto pagado con tarjeta (`EXPENSE` con la tarjeta como cuenta) aumenta la deuda; un `PAY_CREDIT_CARD` la reduce y descuenta de la cuenta origen.
 
 ---
 
