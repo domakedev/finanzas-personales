@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
+const VALID_PILLARS = ['GROWTH', 'STABILITY', 'ESSENTIAL', 'REWARD'];
+
 export async function POST(request: NextRequest) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -92,6 +94,12 @@ INSTRUCCIONES:
    - Si es TRANSFER: incluye fromAccountId (cuenta origen) y accountId (cuenta destino)
    - Si es PAY_DEBT o PAY_CREDIT_CARD: incluye debtId
    - Si es SAVE_FOR_GOAL: incluye goalId
+   - pillar (regla 25/15/50/10), obligatorio para EXPENSE, PAY_DEBT y SAVE_FOR_GOAL; null para los demás tipos:
+     * "ESSENTIAL": lo necesario para vivir y trabajar (supermercado, mercado, servicios, luz, agua, internet, pasajes, salud, vivienda, cuotas de deudas)
+     * "REWARD": gustos y disfrute (restaurantes, salidas, delivery, cine, viajes, regalos, compras no necesarias)
+     * "GROWTH": lo que aumenta tu valor o ingresos (cursos, libros, inversiones, gastos de tu negocio o emprendimiento)
+     * "STABILITY": fondo de emergencia y ahorro de seguridad (SAVE_FOR_GOAL normalmente va aquí)
+     Decide por el contexto, no solo por la categoría: "almuerzo con amigos" es REWARD aunque sea comida; "mercado" es ESSENTIAL.
    - confidence: 0-1 qué tan seguro estás del parseo
    - aiNote: Solo si hay ambigüedad o algo que aclarar
 
@@ -116,6 +124,7 @@ RESPONDE SOLO con un JSON válido (sin markdown, sin backticks), con esta estruc
       "fromAccountId": null,
       "debtId": null,
       "goalId": null,
+      "pillar": "ESSENTIAL",
       "confidence": 0.95,
       "aiNote": null
     }
@@ -168,6 +177,7 @@ RESPONDE SOLO con un JSON válido (sin markdown, sin backticks), con esta estruc
       ...tx,
       id: `ai-${Date.now()}-${index}`,
       amount: Number(tx.amount) || 0,
+      pillar: VALID_PILLARS.includes(tx.pillar) ? tx.pillar : undefined,
       confidence: Number(tx.confidence) || 0.5,
     }));
 

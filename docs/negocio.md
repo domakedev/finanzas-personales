@@ -137,6 +137,21 @@ Internamente una tarjeta guarda `totalAmount` (consumos acumulados) y `paidAmoun
 - Cada tarjeta muestra deuda actual, crédito disponible, pago del mes (total y mínimo) y días hasta el próximo pago, y tiene un botón **Pagar tarjeta** que abre el formulario ya configurado como `PAY_CREDIT_CARD` con el pago del mes sugerido.
 - Un gasto pagado con tarjeta (`EXPENSE` con la tarjeta como cuenta) aumenta la deuda; un `PAY_CREDIT_CARD` la reduce y descuenta de la cuenta origen.
 
+### Pilares (regla 25/15/50/10)
+Cada movimiento dice **para qué** es el dinero; la cuenta dice **dónde** está.
+
+| Pilar | % del ingreso del mes | Tipo |
+|---|---|---|
+| Crecimiento | 25% | Meta (hay que llegar) |
+| Estabilidad | 15% | Meta |
+| Esenciales | 50% | Límite (no pasarse) |
+| Recompensas | 10% | Límite |
+
+- Todo gasto lleva pilar. La categoría lo sugiere y la IA de voz lo elige por contexto ("almuerzo con amigos" → Recompensas).
+- Ahorrar o invertir no es un gasto: es una transferencia a una cuenta con pilar (p. ej. "Ahorro BCP" → Estabilidad), que suma sola.
+- La página **Pilares** muestra el mes (meta vs. avance, movimientos por pilar y gastos sin pilar para asignarlos con un toque). El dashboard tiene un resumen con 4 anillos.
+- Al guardar un movimiento aparece un aviso si un pilar cruza 50%, 75%, 90%, 100% o se pasa del límite.
+
 ---
 
 ## Reglas de negocio importantes

@@ -1,3 +1,6 @@
+// Regla 25/15/50/10: what the money is for (independent of which account holds it)
+export type Pillar = 'GROWTH' | 'STABILITY' | 'ESSENTIAL' | 'REWARD';
+
 export interface Account {
   id: string;
   name: string;
@@ -6,6 +9,7 @@ export interface Account {
   balance: number;
   logo?: string; // Path to logo image (e.g., '/logos/bcp.png')
   icon?: string; // Emoji icon (e.g., '💵')
+  pillar?: Pillar; // Money transferred INTO this account counts toward this pillar
 }
 
 export interface Transaction {
@@ -26,6 +30,7 @@ export interface Transaction {
   toCurrency?: string; // Destination currency for transfers
   isVerified?: boolean; // For reconciliation: true = user confirmed this matches bank statement
   isAdjustment?: boolean; // Created by "Ponerme al día": balance adjustment the user may split into real transactions later
+  pillar?: Pillar; // EXPENSE / PAY_DEBT / SAVE_FOR_GOAL: chosen by the user; TRANSFER: copied from the destination account
 }
 
 // AI-parsed transaction suggestion from voice/text input
@@ -40,6 +45,7 @@ export interface ParsedTransaction {
   fromAccountId?: string;
   debtId?: string;
   goalId?: string;
+  pillar?: Pillar;
   confidence: number; // 0-1 how confident the AI is
   aiNote?: string; // Optional note from AI explaining its reasoning
 }

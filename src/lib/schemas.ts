@@ -7,6 +7,7 @@ export const AccountSchema = z.object({
   balance: z.coerce.number().min(0, "El saldo no puede ser negativo"),
   logo: z.string().optional(),
   icon: z.string().optional(),
+  pillar: z.enum(['GROWTH', 'STABILITY', 'ESSENTIAL', 'REWARD']).optional(),
 });
 
 export const TransactionSchema = z.object({
@@ -21,6 +22,7 @@ export const TransactionSchema = z.object({
   debtId: z.string().optional(), // For debt payments
   goalId: z.string().optional(), // For goal savings
   exchangeRate: z.coerce.number().positive().optional(), // For cross-currency transfers
+  pillar: z.enum(['GROWTH', 'STABILITY', 'ESSENTIAL', 'REWARD']).optional(),
 });
 
 const DebtBaseSchema = z.object({

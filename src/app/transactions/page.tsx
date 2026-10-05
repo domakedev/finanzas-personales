@@ -15,6 +15,7 @@ import { ArrowUpRight, ArrowDownLeft, Trash2, Pencil, Loader2, Sprout, HandCoins
 import { format } from 'date-fns';
 import { Transaction } from '@/types';
 import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from '@/constants/categories';
+import { getPillar } from '@/lib/pillars';
 import { addMoney, subtractMoney } from '@/lib/utils';
 
 export default function TransactionsPage() {
@@ -516,6 +517,16 @@ export default function TransactionsPage() {
                             })()}
                           </p>
                         )}
+                        {(() => {
+                          const meta = getPillar(tx.pillar);
+                          if (!meta) return null;
+                          const PillarIcon = meta.icon;
+                          return (
+                            <p className="text-xs mt-1 flex items-center gap-1 font-medium" style={{ color: meta.color }}>
+                              <PillarIcon className="h-3 w-3" /> {meta.name}
+                            </p>
+                          );
+                        })()}
                         {tx.type === 'PAY_DEBT' && tx.debtId && (
                           <p className="text-xs text-muted-foreground mt-1">
                             Deuda: {getDebtName(tx.debtId)}

@@ -85,8 +85,11 @@ interface Account {
   balance: number;
   logo?: string;       // URL del logo del banco/billetera
   icon?: string;
+  pillar?: Pillar;     // Lo transferido A esta cuenta suma a este pilar (p. ej. cuenta de ahorro → STABILITY)
   userId: string;
 }
+
+type Pillar = 'GROWTH' | 'STABILITY' | 'ESSENTIAL' | 'REWARD'; // Regla 25/15/50/10
 ```
 
 ### `transactions`
@@ -108,9 +111,15 @@ interface Transaction {
   convertedAmount?: number;
   fromCurrency?: string;
   toCurrency?: string;
+  isVerified?: boolean;
+  isAdjustment?: boolean;   // Creado por "Ponerme al día"
+  pillar?: Pillar;          // EXPENSE (obligatorio en la UI), PAY_DEBT, SAVE_FOR_GOAL: lo elige el usuario.
+                            // TRANSFER: se copia del pilar de la cuenta destino al guardar.
   userId: string;
 }
 ```
+
+Los pilares se calculan en `src/lib/pillars.ts` (`computeMonthPillars`): la meta de cada pilar es su % sobre los `INCOME` del mes (sin ajustes); el avance suma los movimientos `EXPENSE`, `PAY_DEBT`, `SAVE_FOR_GOAL` y `TRANSFER` con ese `pillar`. `PAY_CREDIT_CARD` no cuenta (los consumos con tarjeta ya cuentan como `EXPENSE`). `findPillarAlert` genera el aviso al cruzar 50/75/90/100% o al pasarse.
 
 ### `debts`
 ```typescript

@@ -13,6 +13,8 @@ import { Loader2 } from 'lucide-react';
 import { Account } from '@/types';
 import { ACCOUNT_OPTIONS } from '@/constants/categories';
 import { OptionSelector } from '@/components/ui/OptionSelector';
+import { PILLARS } from '@/lib/pillars';
+import { deleteField } from 'firebase/firestore';
 
 interface AccountFormProps {
   onSuccess: () => void;
@@ -39,6 +41,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
       balance: account?.balance || 0,
       logo: account?.logo,
       icon: account?.icon,
+      pillar: account?.pillar,
     }
   });
 
@@ -74,10 +77,13 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
       // Remove undefined fields
       if (!accountData.logo) delete accountData.logo;
       if (!accountData.icon) delete accountData.icon;
+      if (!accountData.pillar) delete accountData.pillar;
       
       if (account) {
-        updateAccountInStore(account.id, accountData);
-        await updateAccount(account.id, accountData);
+        updateAccountInStore(account.id, { ...accountData, pillar: accountData.pillar });
+        // Clearing the pillar must remove it from Firestore too
+        const dbData = !accountData.pillar && account.pillar ? { ...accountData, pillar: deleteField() } : accountData;
+        await updateAccount(account.id, dbData as Partial<Account>);
       } else {
         // Add to Firebase and get the real document ID
         const docRef = await addAccount(user.uid, accountData);
@@ -189,6 +195,21 @@ export const AccountForm: React.FC<AccountFormProps> = ({ onSuccess, account }) 
           />
           {errors.balance && <p className="text-xs text-red-500">{errors.balance.message as string}</p>}
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Pilar (opcional)</label>
+        <select
+          {...register('pillar', { setValueAs: (v) => v || undefined })}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid="account-pillar-select"
+        >
+          <option value="">Ninguno</option>
+          {PILLARS.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground">Lo que transfieras a esta cuenta sumará a ese pilar. Útil para tu cuenta de ahorro o de inversión.</p>
       </div>
 
       <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="save-account-button">

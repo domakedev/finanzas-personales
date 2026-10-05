@@ -17,9 +17,11 @@ import {
   PieChart,
   Tag,
   Plus,
-  RefreshCw
+  RefreshCw,
+  Layers
 } from 'lucide-react';
 import { QuickAddTransaction } from './QuickAddTransaction'
+import { PillarAlertToast } from './pillars/PillarAlertToast';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { TransactionForm } from '@/components/forms/TransactionForm';
@@ -78,6 +80,7 @@ export default function Layout({ children }: LayoutProps) {
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Cuentas', href: '/accounts', icon: Wallet },
+    { name: 'Pilares', href: '/pillars', icon: Layers },
     { name: 'Flujo', href: '/transactions', icon: ArrowRightLeft },
     { name: 'Deudas', href: '/debts', icon: CreditCard },
     { name: 'Metas', href: '/goals', icon: Sprout },
@@ -181,6 +184,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </main>
       <QuickAddTransaction />
+      <PillarAlertToast />
       <Modal
         isOpen={isTransactionModalOpen}
         onClose={() => setIsTransactionModalOpen(false)}

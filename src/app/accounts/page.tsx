@@ -14,6 +14,7 @@ import { deleteAccount } from '@/lib/db';
 import { Plus, Wallet, Banknote, CreditCard, Trash2, Pencil, Loader2, Eye, Scale } from 'lucide-react';
 import { Account } from '@/types';
 import { ReconciliationPanel } from '@/components/ReconciliationPanel';
+import { getPillar } from '@/lib/pillars';
 export default function AccountsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -154,6 +155,11 @@ export default function AccountsPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 {account.type === 'BANK' ? 'Cuenta Bancaria' :
                   account.type === 'WALLET' ? 'Billetera Digital' : 'Efectivo'}
+                {getPillar(account.pillar) && (
+                  <span className="font-medium" style={{ color: getPillar(account.pillar)!.color }}>
+                    {' '}· {getPillar(account.pillar)!.name}
+                  </span>
+                )}
               </p>
             </CardContent>
           </Card>

@@ -18,6 +18,8 @@ import {
   updateGoal as updateGoalInDB,
 } from "@/lib/db";
 import { addMoney, subtractMoney } from "@/lib/utils";
+import { PillarPicker } from "@/components/pillars/PillarPicker";
+import { findPillarAlert, getPillar, PILLAR_PICK_TYPES, suggestPillar } from "@/lib/pillars";
 
 export const QuickAddTransaction: React.FC = () => {
   const { user: authUser } = useAuth();
@@ -30,6 +32,8 @@ export const QuickAddTransaction: React.FC = () => {
   const updateAccount = useStore((s) => s.updateAccount);
   const updateDebt = useStore((s) => s.updateDebt);
   const updateGoal = useStore((s) => s.updateGoal);
+  const transactions = useStore((s) => s.transactions);
+  const setPillarAlert = useStore((s) => s.setPillarAlert);
 
   const [isOpen, setIsOpen] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -111,7 +115,13 @@ export const QuickAddTransaction: React.FC = () => {
         setError(data.error || "Error al parsear");
         return;
       }
-      setParsedTxs(data.transactions || []);
+      // Fall back to the category suggestion when the AI didn't pick a pillar
+      setParsedTxs(
+        (data.transactions || []).map((t: ParsedTransaction) => ({
+          ...t,
+          pillar: t.pillar ?? suggestPillar(t.type, t.categoryId),
+        }))
+      );
     } catch (err: any) {
       setError(err.message || "Error de conexión");
     } finally {
@@ -127,13 +137,16 @@ export const QuickAddTransaction: React.FC = () => {
     setParsedTxs((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
   };
 
-  // Check if all transactions have required accountId
+  // Check if all transactions have required accountId (and expenses a pillar)
   const allHaveAccount = parsedTxs.every((t) => t.accountId);
+  const allHavePillar = parsedTxs.every((t) => t.type !== "EXPENSE" || t.pillar);
 
   const handleSaveAll = async () => {
-    if (!user || !allHaveAccount) return;
+    if (!user || !allHaveAccount || !allHavePillar) return;
     setIsSaving(true);
     setError(null);
+    const before = transactions;
+    const saved: Transaction[] = [];
 
     try {
       for (const ptx of parsedTxs) {
@@ -150,12 +163,20 @@ export const QuickAddTransaction: React.FC = () => {
         if (ptx.debtId) txData.debtId = ptx.debtId;
         if (ptx.goalId) txData.goalId = ptx.goalId;
         if (ptx.fromAccountId) txData.fromAccountId = ptx.fromAccountId;
+        const txPillar = PILLAR_PICK_TYPES.includes(ptx.type)
+          ? ptx.pillar
+          : ptx.type === "TRANSFER"
+            ? accounts.find((a) => a.id === ptx.accountId)?.pillar
+            : undefined;
+        if (txPillar) txData.pillar = txPillar;
 
         // Save to Firebase
         const docRef = await addTransactionDB(user.uid, txData as Omit<Transaction, "id">);
 
         // Update local store
-        addTransactionToStore({ ...txData, id: docRef.id, createdAt: new Date() } as Transaction);
+        const savedTx = { ...txData, id: docRef.id, createdAt: new Date() } as Transaction;
+        addTransactionToStore(savedTx);
+        saved.push(savedTx);
 
         // Update account balances
         if (ptx.type === "EXPENSE") {
@@ -229,6 +250,9 @@ export const QuickAddTransaction: React.FC = () => {
           }
         }
       }
+
+      const alert = findPillarAlert(before, [...before, ...saved], saved.map((t) => t.date));
+      if (alert) setPillarAlert(alert);
 
       setShowSuccess(true);
       setParsedTxs([]);
@@ -392,7 +416,27 @@ export const QuickAddTransaction: React.FC = () => {
                             const cat = allCategories.find((c) => c.id === ptx.categoryId);
                             return cat ? <span> • {cat.icon} {cat.name}</span> : null;
                           })()}
+                          {(() => {
+                            const meta = getPillar(ptx.pillar);
+                            return meta ? <span style={{ color: meta.color }} className="font-medium"> • {meta.name}</span> : null;
+                          })()}
                         </div>
+
+                        {PILLAR_PICK_TYPES.includes(ptx.type) && (!ptx.pillar || isEditing) && (
+                          <div className="space-y-1 pt-1">
+                            {!ptx.pillar && (
+                              <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" /> Elige un pilar
+                              </p>
+                            )}
+                            <PillarPicker
+                              compact
+                              value={ptx.pillar}
+                              suggested={suggestPillar(ptx.type, ptx.categoryId)}
+                              onChange={(p) => updateParsed(ptx.id, { pillar: p })}
+                            />
+                          </div>
+                        )}
 
                         {/* Account selector (always visible if no account) */}
                         {(needsAccount || isEditing) && (
@@ -492,7 +536,7 @@ export const QuickAddTransaction: React.FC = () => {
                   {/* Save all button */}
                   <Button
                     onClick={handleSaveAll}
-                    disabled={isSaving || !allHaveAccount}
+                    disabled={isSaving || !allHaveAccount || !allHavePillar}
                     className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white"
                   >
                     {isSaving ? (
@@ -501,6 +545,11 @@ export const QuickAddTransaction: React.FC = () => {
                       <><Check className="mr-2 h-4 w-4" /> Guardar {parsedTxs.length} transacción{parsedTxs.length > 1 ? "es" : ""}</>
                     )}
                   </Button>
+                  {allHaveAccount && !allHavePillar && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                      ⚠️ Todos los gastos necesitan un pilar
+                    </p>
+                  )}
                   {!allHaveAccount && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
                       ⚠️ Todas las transacciones necesitan una cuenta asignada

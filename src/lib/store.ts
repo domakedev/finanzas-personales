@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Account, Transaction, Debt, Goal, Budget, Category } from '@/types';
 import { User } from 'firebase/auth';
+import { PillarAlert } from './pillars';
 
 interface AppState {
   user: User | null;
@@ -36,6 +37,9 @@ interface AppState {
   addCategory: (category: Category) => void;
   updateCategory: (id: string, category: Partial<Category>) => void;
   removeCategory: (id: string) => void;
+
+  pillarAlert: PillarAlert | null;
+  setPillarAlert: (alert: PillarAlert | null) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -89,4 +93,7 @@ export const useStore = create<AppState>((set) => ({
   removeCategory: (id) => set((state) => ({
     categories: state.categories.filter((c) => c.id !== id)
   })),
+
+  pillarAlert: null,
+  setPillarAlert: (pillarAlert) => set({ pillarAlert }),
 }));

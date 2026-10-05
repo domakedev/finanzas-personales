@@ -7,6 +7,7 @@ import { QuickStatsCard } from '@/components/dashboard/QuickStatsCard';
 import { RecentTransactionsList } from '@/components/dashboard/RecentTransactionsList';
 import { CategorySpendingBar } from '@/components/dashboard/CategorySpendingBar';
 import { SavingsTree } from '@/components/SavingsTree';
+import { PillarsSummary } from '@/components/dashboard/PillarsSummary';
 import {
   Wallet, CreditCard, TrendingUp, TrendingDown, DollarSign,
   PiggyBank, AlertCircle, Target, Calendar, RefreshCw
@@ -243,6 +244,8 @@ export default function Dashboard() {
             />
           )}
         </div>
+
+        <PillarsSummary transactions={transactions} monthLabel={monthNameCapitalized} />
 
         {/* Main Content Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
