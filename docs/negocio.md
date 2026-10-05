@@ -147,7 +147,7 @@ Cada movimiento dice **para qué** es el dinero; la cuenta dice **dónde** está
 | Esenciales | 50% | Límite (no pasarse) |
 | Recompensas | 10% | Límite |
 
-- **Nada es automático: el usuario decide.** Al registrar un ingreso escribe cuánto va a cada pilar (eso forma la meta del mes); el botón "Llenar 25/15/50/10" solo propone los montos. Un ingreso puede ir todo a un pilar (p. ej. cuartos → Estabilidad) o quedar sin repartir.
+- **Nada es automático: el usuario decide.** Al registrar un ingreso escribe cuánto va a cada pilar (eso forma la meta del mes); el botón "Llenar 25/15/50/10" solo propone los montos. Un ingreso puede ir todo a un pilar (p. ej. cuartos → Estabilidad) o quedar sin repartir. Con **"Cuenta para"** el ingreso se asigna a otro mes (p. ej. el sueldo de octubre cobrado el 30 de septiembre). Los ajustes de "Ponerme al día" no cuentan salvo que, al editarlos, se marque **"Convertir en movimiento real"**.
 - Todo gasto lleva pilar, elegido por el usuario. La categoría (o el pilar de la cuenta destino en transferencias) solo aparece como pista ✨. La IA de voz propone un pilar que el usuario revisa antes de guardar.
 - Ahorrar o invertir no es un gasto: es una transferencia, a la que el usuario le pone el pilar (p. ej. Estabilidad).
 - La página **Pilares** muestra el mes: ingresos para repartir o editar su reparto, meta vs. avance por pilar, sus movimientos y los gastos sin pilar para asignarlos con un toque. El dashboard tiene un resumen con 4 anillos.

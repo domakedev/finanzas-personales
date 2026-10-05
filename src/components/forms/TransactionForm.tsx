@@ -50,6 +50,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const transactions = useStore((state) => state.transactions);
   const setPillarAlert = useStore((state) => state.setPillarAlert);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // "Ponerme al día" adjustments only count in Pilares once the user explicitly confirms them as real
+  const [confirmReal, setConfirmReal] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [needsExchangeRate, setNeedsExchangeRate] = useState(false);
 
@@ -79,6 +81,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         exchangeRate: transaction.exchangeRate,
         pillar: transaction.pillar,
         pillarSplit: transaction.pillarSplit,
+        pillarMonth: transaction.pillarMonth,
       }
       : {
         type: "EXPENSE" as const,
@@ -104,6 +107,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const categoryId = watch("categoryId");
   const pillar = watch("pillar");
   const pillarSplit = watch("pillarSplit");
+  const pillarMonth = watch("pillarMonth");
   // Hint only: the user always picks the pillar
   const suggestedPillar = suggestPillar(
     transactionType,
@@ -360,6 +364,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       const txSplit = data.type === "INCOME" ? cleanSplit(data.pillarSplit) : undefined;
       if (txSplit) newTransaction.pillarSplit = txSplit;
       else delete newTransaction.pillarSplit;
+      // The "cuenta para" month is independent of the split (an income can be moved before splitting it)
+      if (data.type !== "INCOME" || !data.pillarMonth) delete newTransaction.pillarMonth;
 
       // Calculate converted amount for cross-currency transfers
       if (data.type === "TRANSFER" && data.fromAccountId) {
@@ -724,11 +730,15 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         const dbData: Record<string, unknown> = { ...cleanData };
         if (!newTransaction.pillar && transaction.pillar) dbData.pillar = deleteField();
         if (!newTransaction.pillarSplit && transaction.pillarSplit) dbData.pillarSplit = deleteField();
+        if (!newTransaction.pillarMonth && transaction.pillarMonth) dbData.pillarMonth = deleteField();
+        if (transaction.isAdjustment && confirmReal) dbData.isAdjustment = deleteField();
         await updateTransactionInDB(transaction.id, dbData as Partial<Transaction>);
         updateTransaction(transaction.id, {
           ...cleanData,
           pillar: newTransaction.pillar,
           pillarSplit: newTransaction.pillarSplit,
+          pillarMonth: newTransaction.pillarMonth,
+          isAdjustment: transaction.isAdjustment && !confirmReal ? true : undefined,
         });
       } else {
         // Add new transaction - clean undefined values
@@ -785,7 +795,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const hasError = !!validationError;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form
+      onSubmit={handleSubmit(onSubmit, (errs) => {
+        // Surface validation errors of fields that have no inline message
+        console.error("Transaction form invalid:", errs);
+        setValidationError(`Revisa: ${Object.keys(errs).join(", ")}`);
+      })}
+      className="space-y-4"
+    >
       {validationError && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded flex items-start gap-2">
           <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
@@ -1017,6 +1034,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       {transactionType === "INCOME" && (
         <IncomeSplitEditor
           amount={amount}
+          date={typeof dateWatch === "string" && dateWatch ? new Date(dateWatch + "T00:00:00") : undefined}
+          month={pillarMonth}
+          onMonthChange={(m) => setValue("pillarMonth", m)}
           value={pillarSplit}
           onChange={(split) => {
             setValue("pillarSplit", split);
@@ -1184,6 +1204,22 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           </p>
         )}
       </div>
+
+      {transaction?.isAdjustment && (
+        <label className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-900/20">
+          <input
+            type="checkbox"
+            checked={confirmReal}
+            onChange={(e) => setConfirmReal(e.target.checked)}
+            className="mt-0.5 h-4 w-4"
+            data-testid="confirm-real-checkbox"
+          />
+          <span>
+            <span className="font-medium">Convertir en movimiento real</span>
+            <span className="block text-xs text-muted-foreground">Es un ajuste de &quot;Ponerme al día&quot;. Márcalo para que cuente en Pilares.</span>
+          </span>
+        </label>
+      )}
 
       <Button
         type="submit"

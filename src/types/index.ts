@@ -32,6 +32,7 @@ export interface Transaction {
   isAdjustment?: boolean; // Created by "Ponerme al día": balance adjustment the user may split into real transactions later
   pillar?: Pillar; // EXPENSE / PAY_DEBT / SAVE_FOR_GOAL / TRANSFER: chosen by the user (progress)
   pillarSplit?: Partial<Record<Pillar, number>>; // INCOME: how much of it the user assigns to each pillar (targets)
+  pillarMonth?: string; // INCOME: 'YYYY-MM' the split counts for, when different from the date (e.g. salary paid on the 30th)
 }
 
 // AI-parsed transaction suggestion from voice/text input

@@ -95,9 +95,15 @@ export interface MonthPillars {
 
 const inMonth = (d: Date, month: number, year: number) => d.getMonth() === month && d.getFullYear() === year;
 
+export const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+// Month an income's split counts for: its own month unless the user moved it (e.g. salary paid early)
+export const incomeMonthKey = (t: Transaction) => t.pillarMonth ?? monthKey(t.date);
+
 export const computeMonthPillars = (transactions: Transaction[], month: number, year: number): MonthPillars => {
   const monthTxs = transactions.filter((t) => !t.isAdjustment && inMonth(t.date, month, year));
-  const incomes = monthTxs.filter((t) => t.type === 'INCOME');
+  const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const incomes = transactions.filter((t) => t.type === 'INCOME' && !t.isAdjustment && incomeMonthKey(t) === key);
   const income = incomes.reduce((sum, t) => addMoney(sum, t.amount), 0);
   const assigned = incomes.reduce((sum, t) => addMoney(sum, splitTotal(t.pillarSplit)), 0);
 

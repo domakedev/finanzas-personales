@@ -115,11 +115,12 @@ interface Transaction {
   isAdjustment?: boolean;   // Creado por "Ponerme al día"
   pillar?: Pillar;          // Avance. EXPENSE (obligatorio en la UI), PAY_DEBT, SAVE_FOR_GOAL, TRANSFER: lo elige el usuario
   pillarSplit?: Partial<Record<Pillar, number>>; // Meta. INCOME: cuánto de ese ingreso asigna el usuario a cada pilar
+  pillarMonth?: string;     // INCOME: 'YYYY-MM' al que cuenta el reparto si no es el mes de la fecha (sueldo cobrado antes)
   userId: string;
 }
 ```
 
-Los pilares se calculan en `src/lib/pillars.ts` (`computeMonthPillars`): la meta de cada pilar es la suma de `pillarSplit[pilar]` de los `INCOME` del mes (sin ajustes); nada se reparte solo, el botón "Llenar 25/15/50/10" (`fillSplit`) solo propone montos. El avance suma los movimientos `EXPENSE`, `PAY_DEBT`, `SAVE_FOR_GOAL` y `TRANSFER` con ese `pillar`. `PAY_CREDIT_CARD` no cuenta (los consumos con tarjeta ya cuentan como `EXPENSE`). `findPillarAlert` genera el aviso al cruzar 50/75/90/100% o al pasarse.
+Los pilares se calculan en `src/lib/pillars.ts` (`computeMonthPillars`): la meta de cada pilar es la suma de `pillarSplit[pilar]` de los `INCOME` cuyo mes (`pillarMonth` o el de la fecha) es el mes consultado, sin ajustes de "Ponerme al día" (al editar un ajuste se puede marcar "Convertir en movimiento real", que borra `isAdjustment`); nada se reparte solo, el botón "Llenar 25/15/50/10" (`fillSplit`) solo propone montos. El avance suma los movimientos `EXPENSE`, `PAY_DEBT`, `SAVE_FOR_GOAL` y `TRANSFER` con ese `pillar`. `PAY_CREDIT_CARD` no cuenta (los consumos con tarjeta ya cuentan como `EXPENSE`). `findPillarAlert` genera el aviso al cruzar 50/75/90/100% o al pasarse.
 
 ### `debts`
 ```typescript
