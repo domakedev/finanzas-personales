@@ -59,7 +59,7 @@ export default function PillarsPage() {
   const toPen = makeToPen(currencyOf, usdRate);
   const { income, assigned, incomes, hiddenIncomes, pillars, unassigned } =
     computeMonthPillars(transactions, cursor.month, cursor.year, toPen);
-  const txMoney = (tx: Transaction) => (currencyOf(tx) === 'USD' ? money(tx.amount, 'USD') : tx.amount.toFixed(2));
+  const txMoney = (tx: Transaction) => money(tx.amount, currencyOf(tx));
   const txPenHint = (tx: Transaction) =>
     currencyOf(tx) === 'USD' ? `≈ ${money(toPen(tx, tx.amount))} (TC ${(tx.pillarRate ?? usdRate).toFixed(2)})` : undefined;
   // Freeze today's rate the first time a dollar movement enters Pilares
@@ -284,7 +284,7 @@ export default function PillarsPage() {
                             <div key={tx.id} className="group flex items-center gap-2 py-1 text-sm">
                               <span className="min-w-0 flex-1 truncate">{tx.description}</span>
                               <span className="text-xs text-muted-foreground">{shortDate(tx.date)}</span>
-                              <span className="w-24 text-right tabular-nums" title={txPenHint(tx)}>{txMoney(tx)}</span>
+                              <span className="w-28 text-right tabular-nums" title={txPenHint(tx)}>{txMoney(tx)}</span>
                               <button
                                 onClick={() => setTxPillar(tx.id, undefined)}
                                 disabled={savingId === tx.id}
