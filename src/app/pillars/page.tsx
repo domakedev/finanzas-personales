@@ -3,11 +3,15 @@
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { ChevronLeft, ChevronRight, ChevronDown, Check, AlertCircle } from 'lucide-react';
+import { deleteField } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { IncomeSplitEditor } from '@/components/pillars/IncomeSplitEditor';
 import { useStore } from '@/lib/store';
 import { updateTransaction as updateTransactionInDB } from '@/lib/db';
-import { computeMonthPillars, PILLARS } from '@/lib/pillars';
-import { Pillar } from '@/types';
+import { cleanSplit, computeMonthPillars, PILLARS, PillarSplit, splitTotal } from '@/lib/pillars';
+import { Pillar, Transaction } from '@/types';
 
 export default function PillarsPage() {
   const transactions = useStore((s) => s.transactions);
@@ -18,8 +22,11 @@ export default function PillarsPage() {
   });
   const [openPillar, setOpenPillar] = useState<Pillar | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [splitTx, setSplitTx] = useState<Transaction | null>(null);
+  const [draftSplit, setDraftSplit] = useState<PillarSplit>({});
+  const [splitError, setSplitError] = useState<string | null>(null);
 
-  const { income, pillars, unassigned } = computeMonthPillars(transactions, cursor.month, cursor.year);
+  const { income, assigned, incomes, pillars, unassigned } = computeMonthPillars(transactions, cursor.month, cursor.year);
   const monthLabel = new Date(cursor.year, cursor.month, 1).toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
 
   const shiftMonth = (delta: number) => {
@@ -40,6 +47,32 @@ export default function PillarsPage() {
     }
   };
 
+  const openSplit = (tx: Transaction) => {
+    setSplitTx(tx);
+    setDraftSplit(tx.pillarSplit || {});
+    setSplitError(null);
+  };
+
+  const saveSplit = async () => {
+    if (!splitTx) return;
+    if (splitTotal(draftSplit) > splitTx.amount) {
+      setSplitError('Repartiste más de lo que ingresó');
+      return;
+    }
+    const split = cleanSplit(draftSplit);
+    setSavingId(splitTx.id);
+    try {
+      await updateTransactionInDB(splitTx.id, { pillarSplit: split ?? deleteField() } as Partial<Transaction>);
+      updateTransaction(splitTx.id, { pillarSplit: split });
+      setSplitTx(null);
+    } catch (error) {
+      console.error('Error saving pillar split:', error);
+      setSplitError('No se pudo guardar. Inténtalo de nuevo.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   return (
     <Layout>
       <div className="mx-auto max-w-2xl space-y-4">
@@ -49,17 +82,52 @@ export default function PillarsPage() {
           </button>
           <div className="text-center">
             <h2 className="text-2xl font-bold capitalize">{monthLabel}</h2>
-            <p className="text-sm text-muted-foreground tabular-nums">Ingresos S/ {income.toFixed(2)}</p>
+            <p className="text-sm text-muted-foreground tabular-nums">
+              Ingresos S/ {income.toFixed(2)} · repartido S/ {assigned.toFixed(2)}
+            </p>
           </div>
           <button onClick={() => shiftMonth(1)} className="rounded-full p-2 hover:bg-muted" aria-label="Mes siguiente">
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
 
-        {income <= 0 && (
+        {incomes.length > 0 && (
+          <Card>
+            <CardContent className="space-y-1 pt-4">
+              <p className="pb-1 text-sm font-semibold">Ingresos del mes</p>
+              {incomes
+                .slice()
+                .sort((a, b) => b.date.getTime() - a.date.getTime())
+                .map((tx) => {
+                  const done = splitTotal(tx.pillarSplit);
+                  return (
+                    <button
+                      key={tx.id}
+                      onClick={() => openSplit(tx)}
+                      className="flex w-full items-center gap-3 rounded-md border-t border-border py-2 text-left text-sm first:border-0 hover:bg-muted"
+                      data-testid={`income-split-${tx.id}`}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{tx.description}</span>
+                      <span className="flex gap-0.5">
+                        {PILLARS.filter((p) => tx.pillarSplit?.[p.id]).map((p) => (
+                          <span key={p.id} className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: p.color }} title={p.name} />
+                        ))}
+                      </span>
+                      <span className="w-20 text-right tabular-nums">{tx.amount.toFixed(2)}</span>
+                      <span className={`w-20 text-right text-xs font-medium ${done > 0 ? 'text-muted-foreground' : 'text-primary'}`}>
+                        {done > 0 ? 'Editar' : 'Repartir'}
+                      </span>
+                    </button>
+                  );
+                })}
+            </CardContent>
+          </Card>
+        )}
+
+        {incomes.length === 0 && (
           <Card>
             <CardContent className="pt-6 text-sm text-muted-foreground">
-              Aún no hay ingresos este mes. Las metas de cada pilar se calculan sobre lo que ingresa.
+              Aún no hay ingresos este mes. La meta de cada pilar sale de cómo repartes tus ingresos.
             </CardContent>
           </Card>
         )}
@@ -84,10 +152,10 @@ export default function PillarsPage() {
                     <Icon className="h-5 w-5" />
                   </span>
                   <div className="flex-1">
-                    <p className="font-semibold">
-                      {meta.name} <span className="text-xs font-normal text-muted-foreground">{meta.percent}%</span>
+                    <p className="font-semibold">{meta.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {target > 0 ? (meta.kind === 'goal' ? 'Meta' : 'Límite') : 'Sin meta: reparte un ingreso'}
                     </p>
-                    <p className="text-xs text-muted-foreground">{meta.kind === 'goal' ? 'Meta' : 'Límite'}</p>
                   </div>
                   <div className="text-right tabular-nums">
                     <p className={`font-semibold ${over ? 'text-red-600 dark:text-red-400' : ''}`}>
@@ -164,6 +232,18 @@ export default function PillarsPage() {
           </Card>
         )}
       </div>
+
+      <Modal isOpen={splitTx !== null} onClose={() => setSplitTx(null)} title={splitTx ? `${splitTx.description} · S/ ${splitTx.amount.toFixed(2)}` : ''}>
+        {splitTx && (
+          <div className="space-y-4">
+            {splitError && <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{splitError}</p>}
+            <IncomeSplitEditor amount={splitTx.amount} value={draftSplit} onChange={(v) => { setDraftSplit(v); setSplitError(null); }} />
+            <Button className="w-full" onClick={saveSplit} disabled={savingId === splitTx.id}>
+              Guardar reparto
+            </Button>
+          </div>
+        )}
+      </Modal>
     </Layout>
   );
 }

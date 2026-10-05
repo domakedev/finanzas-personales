@@ -102,7 +102,7 @@ export const QuickAddTransaction: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: inputText,
-          accounts: accounts.map((a) => ({ id: a.id, name: a.name, type: a.type, currency: a.currency, balance: a.balance })),
+          accounts: accounts.map((a) => ({ id: a.id, name: a.name, type: a.type, currency: a.currency, balance: a.balance, pillar: a.pillar })),
           categories: categories.map((c) => ({ id: c.id, name: c.name, icon: c.icon, type: c.type })),
           debts: debts.map((d) => ({ id: d.id, name: d.name, isCreditCard: d.isCreditCard, isLent: d.isLent, currency: d.currency, lastFourDigits: d.lastFourDigits })),
           goals: goals.map((g) => ({ id: g.id, name: g.name, currency: g.currency })),
@@ -115,13 +115,7 @@ export const QuickAddTransaction: React.FC = () => {
         setError(data.error || "Error al parsear");
         return;
       }
-      // Fall back to the category suggestion when the AI didn't pick a pillar
-      setParsedTxs(
-        (data.transactions || []).map((t: ParsedTransaction) => ({
-          ...t,
-          pillar: t.pillar ?? suggestPillar(t.type, t.categoryId),
-        }))
-      );
+      setParsedTxs(data.transactions || []);
     } catch (err: any) {
       setError(err.message || "Error de conexión");
     } finally {
@@ -163,12 +157,7 @@ export const QuickAddTransaction: React.FC = () => {
         if (ptx.debtId) txData.debtId = ptx.debtId;
         if (ptx.goalId) txData.goalId = ptx.goalId;
         if (ptx.fromAccountId) txData.fromAccountId = ptx.fromAccountId;
-        const txPillar = PILLAR_PICK_TYPES.includes(ptx.type)
-          ? ptx.pillar
-          : ptx.type === "TRANSFER"
-            ? accounts.find((a) => a.id === ptx.accountId)?.pillar
-            : undefined;
-        if (txPillar) txData.pillar = txPillar;
+        if (PILLAR_PICK_TYPES.includes(ptx.type) && ptx.pillar) txData.pillar = ptx.pillar;
 
         // Save to Firebase
         const docRef = await addTransactionDB(user.uid, txData as Omit<Transaction, "id">);
@@ -432,7 +421,8 @@ export const QuickAddTransaction: React.FC = () => {
                             <PillarPicker
                               compact
                               value={ptx.pillar}
-                              suggested={suggestPillar(ptx.type, ptx.categoryId)}
+                              suggested={suggestPillar(ptx.type, ptx.categoryId, accounts.find((a) => a.id === ptx.accountId)?.pillar)}
+                              allowNone={ptx.type !== "EXPENSE"}
                               onChange={(p) => updateParsed(ptx.id, { pillar: p })}
                             />
                           </div>
@@ -524,6 +514,10 @@ export const QuickAddTransaction: React.FC = () => {
                               </select>
                             </div>
                           </div>
+                        )}
+
+                        {ptx.type === "INCOME" && (
+                          <p className="text-xs text-muted-foreground">Repártelo en pilares desde la página Pilares.</p>
                         )}
 
                         {ptx.aiNote && (

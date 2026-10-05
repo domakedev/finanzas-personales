@@ -2,7 +2,8 @@ import { TrendingUp, Shield, Home, Star, type LucideIcon } from 'lucide-react';
 import { Pillar, Transaction } from '@/types';
 import { addMoney, calcPercent, multiplyMoney, subtractMoney } from './utils';
 
-// Regla 25/15/50/10. "goal" pillars should reach their target; "limit" pillars should not exceed it.
+// Regla 25/15/50/10. Targets come from how the user splits each income (percent is only used by the
+// "llenar 25/15/50/10" button). "goal" pillars should reach their target; "limit" pillars should not exceed it.
 export interface PillarMeta {
   id: Pillar;
   name: string;
@@ -23,7 +24,7 @@ export const PILLAR_IDS = PILLARS.map((p) => p.id) as [Pillar, ...Pillar[]];
 
 export const getPillar = (id?: Pillar) => PILLARS.find((p) => p.id === id);
 
-// Suggested pillar for the system categories; the user can always override it per transaction
+// Hint shown in the picker (never preselected): the user always chooses the pillar
 const CATEGORY_PILLAR: Record<string, Pillar> = {
   food: 'ESSENTIAL',
   transport: 'ESSENTIAL',
@@ -37,13 +38,41 @@ const CATEGORY_PILLAR: Record<string, Pillar> = {
   gift: 'REWARD',
 };
 
-// Transaction types where the user picks the pillar (TRANSFER takes it from the destination account)
-export const PILLAR_PICK_TYPES: Transaction['type'][] = ['EXPENSE', 'PAY_DEBT', 'SAVE_FOR_GOAL'];
+// Transaction types that carry a pillar (progress). Only EXPENSE requires one.
+export const PILLAR_PICK_TYPES: Transaction['type'][] = ['EXPENSE', 'PAY_DEBT', 'SAVE_FOR_GOAL', 'TRANSFER'];
 
-export const suggestPillar = (type: Transaction['type'], categoryId?: string): Pillar | undefined => {
+export const suggestPillar = (
+  type: Transaction['type'],
+  categoryId?: string,
+  destinationPillar?: Pillar
+): Pillar | undefined => {
+  if (type === 'TRANSFER') return destinationPillar;
   if (type === 'PAY_DEBT') return 'ESSENTIAL';
   if (type === 'SAVE_FOR_GOAL') return 'STABILITY';
   return categoryId ? CATEGORY_PILLAR[categoryId] : undefined;
+};
+
+export type PillarSplit = Partial<Record<Pillar, number>>;
+
+export const splitTotal = (split?: PillarSplit) =>
+  Object.values(split || {}).reduce((sum: number, v) => addMoney(sum, v || 0), 0);
+
+// "Llenar 25/15/50/10": the last pillar takes the rounding remainder so the parts add up to the amount
+export const fillSplit = (amount: number): PillarSplit => {
+  const split: PillarSplit = {};
+  let assigned = 0;
+  PILLARS.forEach((p, i) => {
+    const value = i === PILLARS.length - 1 ? subtractMoney(amount, assigned) : multiplyMoney(amount, p.percent / 100);
+    split[p.id] = value;
+    assigned = addMoney(assigned, value);
+  });
+  return split;
+};
+
+// Drops empty parts; returns undefined when nothing is assigned
+export const cleanSplit = (split?: PillarSplit): PillarSplit | undefined => {
+  const entries = Object.entries(split || {}).filter(([, v]) => Number(v) > 0);
+  return entries.length ? Object.fromEntries(entries.map(([k, v]) => [k, Number(v)])) : undefined;
 };
 
 const COUNTED_TYPES: Transaction['type'][] = ['EXPENSE', 'PAY_DEBT', 'SAVE_FOR_GOAL', 'TRANSFER'];
@@ -58,27 +87,29 @@ export interface PillarStatus {
 
 export interface MonthPillars {
   income: number;
+  assigned: number; // part of the income the user split into pillars
+  incomes: Transaction[];
   pillars: PillarStatus[];
-  unassigned: Transaction[];
+  unassigned: Transaction[]; // expenses without pillar
 }
 
 const inMonth = (d: Date, month: number, year: number) => d.getMonth() === month && d.getFullYear() === year;
 
 export const computeMonthPillars = (transactions: Transaction[], month: number, year: number): MonthPillars => {
   const monthTxs = transactions.filter((t) => !t.isAdjustment && inMonth(t.date, month, year));
-  const income = monthTxs
-    .filter((t) => t.type === 'INCOME')
-    .reduce((sum, t) => addMoney(sum, t.amount), 0);
+  const incomes = monthTxs.filter((t) => t.type === 'INCOME');
+  const income = incomes.reduce((sum, t) => addMoney(sum, t.amount), 0);
+  const assigned = incomes.reduce((sum, t) => addMoney(sum, splitTotal(t.pillarSplit)), 0);
 
   const pillars = PILLARS.map((meta) => {
     const txs = monthTxs.filter((t) => t.pillar === meta.id && COUNTED_TYPES.includes(t.type));
     const spent = txs.reduce((sum, t) => addMoney(sum, t.amount), 0);
-    const target = multiplyMoney(income, meta.percent / 100);
+    const target = incomes.reduce((sum, t) => addMoney(sum, t.pillarSplit?.[meta.id] || 0), 0);
     return { meta, target, spent, percent: target > 0 ? calcPercent(spent, target) : 0, transactions: txs };
   });
 
   const unassigned = monthTxs.filter((t) => t.type === 'EXPENSE' && !t.pillar);
-  return { income, pillars, unassigned };
+  return { income, assigned, incomes, pillars, unassigned };
 };
 
 // ---- Threshold alerts (50%, 75%, 90%, 100%, over 100%) ----
@@ -123,7 +154,6 @@ export const findPillarAlert = (before: Transaction[], after: Transaction[], dat
     const [year, month] = key.split('-').map(Number);
     const prev = computeMonthPillars(before, month, year);
     const next = computeMonthPillars(after, month, year);
-    if (next.income <= 0) continue;
 
     next.pillars.forEach((status, i) => {
       const level = crossed(prev.pillars[i].percent, status.percent);

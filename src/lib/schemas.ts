@@ -23,6 +23,7 @@ export const TransactionSchema = z.object({
   goalId: z.string().optional(), // For goal savings
   exchangeRate: z.coerce.number().positive().optional(), // For cross-currency transfers
   pillar: z.enum(['GROWTH', 'STABILITY', 'ESSENTIAL', 'REWARD']).optional(),
+  pillarSplit: z.partialRecord(z.enum(['GROWTH', 'STABILITY', 'ESSENTIAL', 'REWARD']), z.number().min(0)).optional(),
 });
 
 const DebtBaseSchema = z.object({

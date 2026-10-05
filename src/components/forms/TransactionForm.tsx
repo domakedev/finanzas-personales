@@ -20,7 +20,8 @@ import { TRANSACTION_CATEGORIES, INCOME_SOURCES } from "@/constants/categories";
 import { addMoney } from "@/lib/utils";
 import { deleteField } from "firebase/firestore";
 import { PillarPicker } from "@/components/pillars/PillarPicker";
-import { findPillarAlert, getPillar, PILLAR_PICK_TYPES, suggestPillar } from "@/lib/pillars";
+import { IncomeSplitEditor } from "@/components/pillars/IncomeSplitEditor";
+import { cleanSplit, findPillarAlert, PILLAR_PICK_TYPES, splitTotal, suggestPillar } from "@/lib/pillars";
 
 interface TransactionFormProps {
   onSuccess: () => void;
@@ -48,8 +49,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const goals = useStore((state) => state.goals);
   const transactions = useStore((state) => state.transactions);
   const setPillarAlert = useStore((state) => state.setPillarAlert);
-  // Once the user picks a pillar by hand we stop overwriting it with the category suggestion
-  const [pillarTouched, setPillarTouched] = useState(!!transaction?.pillar);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [needsExchangeRate, setNeedsExchangeRate] = useState(false);
@@ -79,6 +78,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         goalId: transaction.goalId,
         exchangeRate: transaction.exchangeRate,
         pillar: transaction.pillar,
+        pillarSplit: transaction.pillarSplit,
       }
       : {
         type: "EXPENSE" as const,
@@ -89,7 +89,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           const day = String(today.getDate()).padStart(2, "0");
           return `${year}-${month}-${day}`;
         })(), // Format YYYY-MM-DD for input type="date" using local date
-        pillar: suggestPillar(defaults?.type ?? "EXPENSE"),
         ...defaults,
       },
   });
@@ -104,12 +103,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const exchangeRate = Number(watch("exchangeRate")) || 0;
   const categoryId = watch("categoryId");
   const pillar = watch("pillar");
-  const suggestedPillar = suggestPillar(transactionType, categoryId);
-
-  // Keep the pillar in sync with the category suggestion until the user chooses one
-  useEffect(() => {
-    if (!pillarTouched) setValue("pillar", suggestedPillar);
-  }, [suggestedPillar, pillarTouched, setValue]);
+  const pillarSplit = watch("pillarSplit");
+  // Hint only: the user always picks the pillar
+  const suggestedPillar = suggestPillar(
+    transactionType,
+    categoryId,
+    accounts.find((a) => a.id === toAccountId)?.pillar
+  );
 
   // Check if exchange rate is needed
   useEffect(() => {
@@ -152,6 +152,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     // Validate EXPENSE
     if (data.type === "EXPENSE" && !data.pillar) {
       return "Elige a qué pilar pertenece este gasto";
+    }
+    if (data.type === "INCOME" && splitTotal(data.pillarSplit) > data.amount) {
+      return "Repartiste más de lo que ingresó";
     }
     if (data.type === "EXPENSE") {
       // Check if it's a credit card
@@ -350,14 +353,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       if (!data.goalId) delete newTransaction.goalId;
       if (!data.exchangeRate) delete newTransaction.exchangeRate;
 
-      // Pillar: picked by the user for expenses/debt/goal payments, inherited from the destination account for transfers
-      const txPillar = PILLAR_PICK_TYPES.includes(data.type)
-        ? data.pillar
-        : data.type === "TRANSFER"
-          ? accounts.find((a) => a.id === data.accountId)?.pillar
-          : undefined;
+      // Pillar (progress) on outflows; pillar split (targets) on incomes — both chosen by the user
+      const txPillar = PILLAR_PICK_TYPES.includes(data.type) ? data.pillar : undefined;
       if (txPillar) newTransaction.pillar = txPillar;
       else delete newTransaction.pillar;
+      const txSplit = data.type === "INCOME" ? cleanSplit(data.pillarSplit) : undefined;
+      if (txSplit) newTransaction.pillarSplit = txSplit;
+      else delete newTransaction.pillarSplit;
 
       // Calculate converted amount for cross-currency transfers
       if (data.type === "TRANSFER" && data.fromAccountId) {
@@ -718,12 +720,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         const cleanData = Object.fromEntries(
           Object.entries(newTransaction).filter(([_, v]) => v !== undefined)
         );
-        // Changing to a type without pillar must remove the stored one
-        const dbData = !newTransaction.pillar && transaction.pillar
-          ? { ...cleanData, pillar: deleteField() }
-          : cleanData;
+        // Removing a pillar / split must delete the stored field too
+        const dbData: Record<string, unknown> = { ...cleanData };
+        if (!newTransaction.pillar && transaction.pillar) dbData.pillar = deleteField();
+        if (!newTransaction.pillarSplit && transaction.pillarSplit) dbData.pillarSplit = deleteField();
         await updateTransactionInDB(transaction.id, dbData as Partial<Transaction>);
-        updateTransaction(transaction.id, { ...cleanData, pillar: newTransaction.pillar });
+        updateTransaction(transaction.id, {
+          ...cleanData,
+          pillar: newTransaction.pillar,
+          pillarSplit: newTransaction.pillarSplit,
+        });
       } else {
         // Add new transaction - clean undefined values
         const cleanData = Object.fromEntries(
@@ -999,13 +1005,24 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           <PillarPicker
             value={pillar}
             suggested={suggestedPillar}
+            allowNone={transactionType !== "EXPENSE"}
             onChange={(p) => {
-              setPillarTouched(true);
               setValue("pillar", p);
               setValidationError(null);
             }}
           />
         </div>
+      )}
+
+      {transactionType === "INCOME" && (
+        <IncomeSplitEditor
+          amount={amount}
+          value={pillarSplit}
+          onChange={(split) => {
+            setValue("pillarSplit", split);
+            setValidationError(null);
+          }}
+        />
       )}
 
       {transactionType === "TRANSFER" ? (
@@ -1057,18 +1074,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
               )}
             </div>
           </div>
-
-          {(() => {
-            const destPillar = getPillar(accounts.find((a) => a.id === toAccountId)?.pillar);
-            if (!destPillar) return null;
-            const DestIcon = destPillar.icon;
-            return (
-              <p className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="transfer-pillar-hint">
-                <DestIcon className="h-4 w-4" style={{ color: destPillar.color }} />
-                Suma a {destPillar.name} automáticamente
-              </p>
-            );
-          })()}
 
           {needsExchangeRate && (
             <div className="bg-blue-50 border border-blue-200 p-4 rounded space-y-3">

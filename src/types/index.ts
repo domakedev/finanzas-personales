@@ -9,7 +9,7 @@ export interface Account {
   balance: number;
   logo?: string; // Path to logo image (e.g., '/logos/bcp.png')
   icon?: string; // Emoji icon (e.g., '💵')
-  pillar?: Pillar; // Money transferred INTO this account counts toward this pillar
+  pillar?: Pillar; // Hint: transfers INTO this account suggest this pillar
 }
 
 export interface Transaction {
@@ -30,7 +30,8 @@ export interface Transaction {
   toCurrency?: string; // Destination currency for transfers
   isVerified?: boolean; // For reconciliation: true = user confirmed this matches bank statement
   isAdjustment?: boolean; // Created by "Ponerme al día": balance adjustment the user may split into real transactions later
-  pillar?: Pillar; // EXPENSE / PAY_DEBT / SAVE_FOR_GOAL: chosen by the user; TRANSFER: copied from the destination account
+  pillar?: Pillar; // EXPENSE / PAY_DEBT / SAVE_FOR_GOAL / TRANSFER: chosen by the user (progress)
+  pillarSplit?: Partial<Record<Pillar, number>>; // INCOME: how much of it the user assigns to each pillar (targets)
 }
 
 // AI-parsed transaction suggestion from voice/text input

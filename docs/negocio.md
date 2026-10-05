@@ -140,16 +140,17 @@ Internamente una tarjeta guarda `totalAmount` (consumos acumulados) y `paidAmoun
 ### Pilares (regla 25/15/50/10)
 Cada movimiento dice **para qué** es el dinero; la cuenta dice **dónde** está.
 
-| Pilar | % del ingreso del mes | Tipo |
+| Pilar | Referencia | Tipo |
 |---|---|---|
 | Crecimiento | 25% | Meta (hay que llegar) |
 | Estabilidad | 15% | Meta |
 | Esenciales | 50% | Límite (no pasarse) |
 | Recompensas | 10% | Límite |
 
-- Todo gasto lleva pilar. La categoría lo sugiere y la IA de voz lo elige por contexto ("almuerzo con amigos" → Recompensas).
-- Ahorrar o invertir no es un gasto: es una transferencia a una cuenta con pilar (p. ej. "Ahorro BCP" → Estabilidad), que suma sola.
-- La página **Pilares** muestra el mes (meta vs. avance, movimientos por pilar y gastos sin pilar para asignarlos con un toque). El dashboard tiene un resumen con 4 anillos.
+- **Nada es automático: el usuario decide.** Al registrar un ingreso escribe cuánto va a cada pilar (eso forma la meta del mes); el botón "Llenar 25/15/50/10" solo propone los montos. Un ingreso puede ir todo a un pilar (p. ej. cuartos → Estabilidad) o quedar sin repartir.
+- Todo gasto lleva pilar, elegido por el usuario. La categoría (o el pilar de la cuenta destino en transferencias) solo aparece como pista ✨. La IA de voz propone un pilar que el usuario revisa antes de guardar.
+- Ahorrar o invertir no es un gasto: es una transferencia, a la que el usuario le pone el pilar (p. ej. Estabilidad).
+- La página **Pilares** muestra el mes: ingresos para repartir o editar su reparto, meta vs. avance por pilar, sus movimientos y los gastos sin pilar para asignarlos con un toque. El dashboard tiene un resumen con 4 anillos.
 - Al guardar un movimiento aparece un aviso si un pilar cruza 50%, 75%, 90%, 100% o se pasa del límite.
 
 ---

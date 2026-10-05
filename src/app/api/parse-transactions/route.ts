@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Build context about user's accounts, categories, etc.
     const accountsList = (accounts || []).map((a: any) =>
-      `- ID: "${a.id}", Nombre: "${a.name}", Tipo: ${a.type}, Moneda: ${a.currency}, Saldo: ${a.balance}`
+      `- ID: "${a.id}", Nombre: "${a.name}", Tipo: ${a.type}, Moneda: ${a.currency}, Saldo: ${a.balance}${a.pillar ? `, Pilar: ${a.pillar}` : ''}`
     ).join('\n');
 
     const categoriesList = (categories || []).map((c: any) =>
@@ -94,7 +94,7 @@ INSTRUCCIONES:
    - Si es TRANSFER: incluye fromAccountId (cuenta origen) y accountId (cuenta destino)
    - Si es PAY_DEBT o PAY_CREDIT_CARD: incluye debtId
    - Si es SAVE_FOR_GOAL: incluye goalId
-   - pillar (regla 25/15/50/10), obligatorio para EXPENSE, PAY_DEBT y SAVE_FOR_GOAL; null para los demás tipos:
+   - pillar (regla 25/15/50/10): obligatorio para EXPENSE; opcional para PAY_DEBT, SAVE_FOR_GOAL y TRANSFER (en TRANSFER usa el Pilar de la cuenta destino si tiene, si no null); null para INCOME y los demás tipos:
      * "ESSENTIAL": lo necesario para vivir y trabajar (supermercado, mercado, servicios, luz, agua, internet, pasajes, salud, vivienda, cuotas de deudas)
      * "REWARD": gustos y disfrute (restaurantes, salidas, delivery, cine, viajes, regalos, compras no necesarias)
      * "GROWTH": lo que aumenta tu valor o ingresos (cursos, libros, inversiones, gastos de tu negocio o emprendimiento)

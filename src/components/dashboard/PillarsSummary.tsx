@@ -14,7 +14,7 @@ interface PillarsSummaryProps {
 
 export const PillarsSummary: React.FC<PillarsSummaryProps> = ({ transactions, monthLabel }) => {
   const now = new Date();
-  const { income, pillars } = computeMonthPillars(transactions, now.getMonth(), now.getFullYear());
+  const { assigned, pillars } = computeMonthPillars(transactions, now.getMonth(), now.getFullYear());
 
   return (
     <Link href="/pillars" className="block" data-testid="dashboard-pillars">
@@ -26,8 +26,8 @@ export const PillarsSummary: React.FC<PillarsSummaryProps> = ({ transactions, mo
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {income <= 0 ? (
-            <p className="text-sm text-muted-foreground">Registra tus ingresos del mes para ver tus pilares.</p>
+          {assigned <= 0 ? (
+            <p className="text-sm text-muted-foreground">Reparte tus ingresos del mes en pilares para ver tu avance.</p>
           ) : (
             <div className="grid grid-cols-4 gap-2">
               {pillars.map(({ meta, percent }) => {

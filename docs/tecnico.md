@@ -85,7 +85,7 @@ interface Account {
   balance: number;
   logo?: string;       // URL del logo del banco/billetera
   icon?: string;
-  pillar?: Pillar;     // Lo transferido A esta cuenta suma a este pilar (p. ej. cuenta de ahorro → STABILITY)
+  pillar?: Pillar;     // Pista: al transferir A esta cuenta se sugiere este pilar (nunca se marca solo)
   userId: string;
 }
 
@@ -113,13 +113,13 @@ interface Transaction {
   toCurrency?: string;
   isVerified?: boolean;
   isAdjustment?: boolean;   // Creado por "Ponerme al día"
-  pillar?: Pillar;          // EXPENSE (obligatorio en la UI), PAY_DEBT, SAVE_FOR_GOAL: lo elige el usuario.
-                            // TRANSFER: se copia del pilar de la cuenta destino al guardar.
+  pillar?: Pillar;          // Avance. EXPENSE (obligatorio en la UI), PAY_DEBT, SAVE_FOR_GOAL, TRANSFER: lo elige el usuario
+  pillarSplit?: Partial<Record<Pillar, number>>; // Meta. INCOME: cuánto de ese ingreso asigna el usuario a cada pilar
   userId: string;
 }
 ```
 
-Los pilares se calculan en `src/lib/pillars.ts` (`computeMonthPillars`): la meta de cada pilar es su % sobre los `INCOME` del mes (sin ajustes); el avance suma los movimientos `EXPENSE`, `PAY_DEBT`, `SAVE_FOR_GOAL` y `TRANSFER` con ese `pillar`. `PAY_CREDIT_CARD` no cuenta (los consumos con tarjeta ya cuentan como `EXPENSE`). `findPillarAlert` genera el aviso al cruzar 50/75/90/100% o al pasarse.
+Los pilares se calculan en `src/lib/pillars.ts` (`computeMonthPillars`): la meta de cada pilar es la suma de `pillarSplit[pilar]` de los `INCOME` del mes (sin ajustes); nada se reparte solo, el botón "Llenar 25/15/50/10" (`fillSplit`) solo propone montos. El avance suma los movimientos `EXPENSE`, `PAY_DEBT`, `SAVE_FOR_GOAL` y `TRANSFER` con ese `pillar`. `PAY_CREDIT_CARD` no cuenta (los consumos con tarjeta ya cuentan como `EXPENSE`). `findPillarAlert` genera el aviso al cruzar 50/75/90/100% o al pasarse.
 
 ### `debts`
 ```typescript
