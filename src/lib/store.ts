@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Account, Transaction, Debt, Goal, Budget, Category } from '@/types';
 import { User } from 'firebase/auth';
-import { PillarAlert } from './pillars';
+import { DEFAULT_USD_RATE, PillarAlert } from './pillars';
 
 interface AppState {
   user: User | null;
@@ -40,7 +40,21 @@ interface AppState {
 
   pillarAlert: PillarAlert | null;
   setPillarAlert: (alert: PillarAlert | null) => void;
+
+  // General soles-per-dollar rate frozen on new dollar movements for Pilares (kept on this device)
+  usdRate: number;
+  setUsdRate: (rate: number) => void;
 }
+
+const USD_RATE_KEY = 'pillarsUsdRate';
+const readUsdRate = () => {
+  try {
+    const stored = typeof window !== 'undefined' ? Number(window.localStorage.getItem(USD_RATE_KEY)) : 0;
+    return stored > 0 ? stored : DEFAULT_USD_RATE;
+  } catch {
+    return DEFAULT_USD_RATE;
+  }
+};
 
 export const useStore = create<AppState>((set) => ({
   user: null,
@@ -96,4 +110,14 @@ export const useStore = create<AppState>((set) => ({
 
   pillarAlert: null,
   setPillarAlert: (pillarAlert) => set({ pillarAlert }),
+
+  usdRate: readUsdRate(),
+  setUsdRate: (usdRate) => {
+    try {
+      window.localStorage.setItem(USD_RATE_KEY, String(usdRate));
+    } catch {
+      // storage unavailable: keep the rate for this session only
+    }
+    set({ usdRate });
+  },
 }));

@@ -21,7 +21,7 @@ import { addMoney } from "@/lib/utils";
 import { deleteField } from "firebase/firestore";
 import { PillarPicker } from "@/components/pillars/PillarPicker";
 import { IncomeSplitEditor } from "@/components/pillars/IncomeSplitEditor";
-import { cleanSplit, findPillarAlert, PILLAR_PICK_TYPES, splitTotal, suggestPillar } from "@/lib/pillars";
+import { cleanSplit, currencySymbol, findPillarAlert, makeCurrencyOf, makeToPen, PILLAR_PICK_TYPES, splitTotal, suggestPillar } from "@/lib/pillars";
 
 interface TransactionFormProps {
   onSuccess: () => void;
@@ -49,6 +49,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const goals = useStore((state) => state.goals);
   const transactions = useStore((state) => state.transactions);
   const setPillarAlert = useStore((state) => state.setPillarAlert);
+  const usdRate = useStore((state) => state.usdRate);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // "Ponerme al día" adjustments only count in Pilares once the user explicitly confirms them as real
   const [confirmReal, setConfirmReal] = useState(false);
@@ -364,6 +365,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       const txSplit = data.type === "INCOME" ? cleanSplit(data.pillarSplit) : undefined;
       if (txSplit) newTransaction.pillarSplit = txSplit;
       else delete newTransaction.pillarSplit;
+      // Dollar movements in Pilares keep the exchange rate of the moment they were registered
+      const isUsd = makeCurrencyOf(accounts, debts)(newTransaction as Transaction) === "USD";
+      if (isUsd && (txPillar || txSplit)) newTransaction.pillarRate = transaction?.pillarRate ?? usdRate;
+      else delete newTransaction.pillarRate;
       // The "cuenta para" month is independent of the split (an income can be moved before splitting it)
       if (data.type !== "INCOME" || !data.pillarMonth) delete newTransaction.pillarMonth;
 
@@ -731,6 +736,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         if (!newTransaction.pillar && transaction.pillar) dbData.pillar = deleteField();
         if (!newTransaction.pillarSplit && transaction.pillarSplit) dbData.pillarSplit = deleteField();
         if (!newTransaction.pillarMonth && transaction.pillarMonth) dbData.pillarMonth = deleteField();
+        if (!newTransaction.pillarRate && transaction.pillarRate) dbData.pillarRate = deleteField();
         if (transaction.isAdjustment && confirmReal) dbData.isAdjustment = deleteField();
         await updateTransactionInDB(transaction.id, dbData as Partial<Transaction>);
         updateTransaction(transaction.id, {
@@ -738,6 +744,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           pillar: newTransaction.pillar,
           pillarSplit: newTransaction.pillarSplit,
           pillarMonth: newTransaction.pillarMonth,
+          pillarRate: newTransaction.pillarRate,
           isAdjustment: transaction.isAdjustment && !confirmReal ? true : undefined,
         });
       } else {
@@ -770,7 +777,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       // Milestone alert (50/75/90/100%/over) for the pillar this movement touched
       const savedTx = { ...newTransaction, id: transaction?.id ?? "new", createdAt: new Date() } as Transaction;
       const after = [...transactions.filter((t) => t.id !== transaction?.id), savedTx];
-      const alert = findPillarAlert(transactions, after, [savedTx.date]);
+      const alert = findPillarAlert(transactions, after, [savedTx.date], makeToPen(makeCurrencyOf(accounts, debts), usdRate));
       if (alert) setPillarAlert(alert);
 
       reset();
@@ -1034,6 +1041,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       {transactionType === "INCOME" && (
         <IncomeSplitEditor
           amount={amount}
+          symbol={currencySymbol(accounts.find((a) => a.id === toAccountId)?.currency ?? "PEN")}
           date={typeof dateWatch === "string" && dateWatch ? new Date(dateWatch + "T00:00:00") : undefined}
           month={pillarMonth}
           onMonthChange={(m) => setValue("pillarMonth", m)}

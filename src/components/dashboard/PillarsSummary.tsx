@@ -4,7 +4,8 @@ import React from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Transaction } from "@/types";
-import { computeMonthPillars } from "@/lib/pillars";
+import { computeMonthPillars, makeCurrencyOf, makeToPen } from "@/lib/pillars";
+import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
 interface PillarsSummaryProps {
@@ -13,8 +14,12 @@ interface PillarsSummaryProps {
 }
 
 export const PillarsSummary: React.FC<PillarsSummaryProps> = ({ transactions, monthLabel }) => {
+  const accounts = useStore((s) => s.accounts);
+  const debts = useStore((s) => s.debts);
+  const usdRate = useStore((s) => s.usdRate);
   const now = new Date();
-  const { assigned, pillars } = computeMonthPillars(transactions, now.getMonth(), now.getFullYear());
+  const toPen = makeToPen(makeCurrencyOf(accounts, debts), usdRate);
+  const { assigned, pillars } = computeMonthPillars(transactions, now.getMonth(), now.getFullYear(), toPen);
 
   return (
     <Link href="/pillars" className="block" data-testid="dashboard-pillars">

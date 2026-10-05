@@ -11,12 +11,14 @@ import { IncomeSplitEditor } from '@/components/pillars/IncomeSplitEditor';
 import { useStore } from '@/lib/store';
 import { updateTransaction as updateTransactionInDB } from '@/lib/db';
 import {
-  cleanSplit, computeMonthPillars, getPillar, monthKey, PILLARS, PillarSplit, PillarStatus, splitTotal,
+  cleanSplit, computeMonthPillars, Currency, currencySymbol, getPillar, makeCurrencyOf, makeToPen, monthKey, PILLARS,
+  PillarStatus, PillarSplit, splitTotal,
 } from '@/lib/pillars';
 import { subtractMoney } from '@/lib/utils';
 import { Pillar, Transaction } from '@/types';
 
-const money = (v: number) => `S/ ${v.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (v: number, currency: Currency = 'PEN') =>
+  `${currencySymbol(currency)} ${v.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const shortDate = (d: Date) => d.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
 
 const statusLine = ({ meta, target, spent }: PillarStatus) => {
@@ -35,6 +37,9 @@ const statusLine = ({ meta, target, spent }: PillarStatus) => {
 export default function PillarsPage() {
   const transactions = useStore((s) => s.transactions);
   const accounts = useStore((s) => s.accounts);
+  const debts = useStore((s) => s.debts);
+  const usdRate = useStore((s) => s.usdRate);
+  const setUsdRate = useStore((s) => s.setUsdRate);
   const updateTransaction = useStore((s) => s.updateTransaction);
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
@@ -49,7 +54,16 @@ export default function PillarsPage() {
   const [lastAssigned, setLastAssigned] = useState<{ txId: string; description: string; pillar: Pillar } | null>(null);
   const [showHidden, setShowHidden] = useState(false);
 
-  const { income, assigned, incomes, hiddenIncomes, pillars, unassigned } = computeMonthPillars(transactions, cursor.month, cursor.year);
+  // Pilares count in soles; dollar movements are converted with the rate frozen on them
+  const currencyOf = makeCurrencyOf(accounts, debts);
+  const toPen = makeToPen(currencyOf, usdRate);
+  const { income, assigned, incomes, hiddenIncomes, pillars, unassigned } =
+    computeMonthPillars(transactions, cursor.month, cursor.year, toPen);
+  const txMoney = (tx: Transaction) => (currencyOf(tx) === 'USD' ? money(tx.amount, 'USD') : tx.amount.toFixed(2));
+  const txPenHint = (tx: Transaction) =>
+    currencyOf(tx) === 'USD' ? `≈ ${money(toPen(tx, tx.amount))} (TC ${(tx.pillarRate ?? usdRate).toFixed(2)})` : undefined;
+  // Freeze today's rate the first time a dollar movement enters Pilares
+  const rateFor = (tx: Transaction) => (currencyOf(tx) === 'USD' && !tx.pillarRate ? { pillarRate: usdRate } : {});
 
   // The undo bar disappears after a few seconds
   useEffect(() => {
@@ -70,8 +84,10 @@ export default function PillarsPage() {
   const setTxPillar = async (txId: string, pillar: Pillar | undefined) => {
     setSavingId(txId);
     try {
-      await updateTransactionInDB(txId, { pillar: pillar ?? deleteField() } as unknown as Partial<Transaction>);
-      updateTransaction(txId, { pillar });
+      const tx = transactions.find((t) => t.id === txId);
+      const extra = pillar && tx ? rateFor(tx) : {};
+      await updateTransactionInDB(txId, { pillar: pillar ?? deleteField(), ...extra } as unknown as Partial<Transaction>);
+      updateTransaction(txId, { pillar, ...extra });
       return true;
     } catch (error) {
       console.error('Error updating pillar:', error);
@@ -121,11 +137,13 @@ export default function PillarsPage() {
     const month = draftMonth && draftMonth !== monthKey(splitTx.date) ? draftMonth : undefined;
     setSavingId(splitTx.id);
     try {
+      const extra = split ? rateFor(splitTx) : {};
       await updateTransactionInDB(splitTx.id, {
         pillarSplit: split ?? deleteField(),
         pillarMonth: month ?? deleteField(),
+        ...extra,
       } as unknown as Partial<Transaction>);
-      updateTransaction(splitTx.id, { pillarSplit: split, pillarMonth: month });
+      updateTransaction(splitTx.id, { pillarSplit: split, pillarMonth: month, ...extra });
       setSplitTx(null);
     } catch (error) {
       console.error('Error saving pillar split:', error);
@@ -158,7 +176,23 @@ export default function PillarsPage() {
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <label className="rounded-lg border border-border bg-card px-4 py-2" title="Se guarda en cada movimiento en dólares al registrarlo; cambiarlo no altera los anteriores">
+              <span className="block text-xs text-muted-foreground">Tipo de cambio $</span>
+              <span className="flex items-center gap-1 text-lg font-semibold tabular-nums">
+                S/
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={usdRate}
+                  onChange={(e) => Number(e.target.value) > 0 && setUsdRate(Number(e.target.value))}
+                  className="w-16 bg-transparent outline-none focus-visible:underline"
+                  aria-label="Soles por dólar"
+                  data-testid="usd-rate-input"
+                />
+              </span>
+            </label>
             {stats.map((s) => (
               <div key={s.label} className="rounded-lg border border-border bg-card px-4 py-2">
                 <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -250,7 +284,7 @@ export default function PillarsPage() {
                             <div key={tx.id} className="group flex items-center gap-2 py-1 text-sm">
                               <span className="min-w-0 flex-1 truncate">{tx.description}</span>
                               <span className="text-xs text-muted-foreground">{shortDate(tx.date)}</span>
-                              <span className="w-20 text-right tabular-nums">{tx.amount.toFixed(2)}</span>
+                              <span className="w-24 text-right tabular-nums" title={txPenHint(tx)}>{txMoney(tx)}</span>
                               <button
                                 onClick={() => setTxPillar(tx.id, undefined)}
                                 disabled={savingId === tx.id}
@@ -302,7 +336,7 @@ export default function PillarsPage() {
                         >
                           <span className="flex items-center gap-2 text-sm">
                             <span className="min-w-0 flex-1 truncate font-medium">{tx.description}</span>
-                            <span className="tabular-nums">{tx.amount.toFixed(2)}</span>
+                            <span className="tabular-nums" title={txPenHint(tx)}>{txMoney(tx)}</span>
                           </span>
                           <span className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span>{shortDate(tx.date)}</span>
@@ -347,7 +381,7 @@ export default function PillarsPage() {
                     {showHidden && hiddenIncomes.map((tx) => (
                       <div key={tx.id} className="flex items-center gap-2 py-1.5 text-sm text-muted-foreground">
                         <span className="min-w-0 flex-1 truncate line-through">{tx.description}</span>
-                        <span className="tabular-nums">{tx.amount.toFixed(2)}</span>
+                        <span className="tabular-nums">{txMoney(tx)}</span>
                         <button
                           onClick={() => setExcluded(tx.id, false)}
                           disabled={savingId === tx.id}
@@ -400,7 +434,7 @@ export default function PillarsPage() {
                         <div key={tx.id} className="space-y-2 border-t border-border py-2.5 first:border-0">
                           <div className="flex items-center gap-2 text-sm">
                             <span className="min-w-0 flex-1 truncate">{tx.description}</span>
-                            <span className="font-medium tabular-nums">{tx.amount.toFixed(2)}</span>
+                            <span className="font-medium tabular-nums" title={txPenHint(tx)}>{txMoney(tx)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
@@ -433,12 +467,13 @@ export default function PillarsPage() {
         </div>
       </div>
 
-      <Modal isOpen={splitTx !== null} onClose={() => setSplitTx(null)} title={splitTx ? `${splitTx.description} · ${money(splitTx.amount)}` : ''}>
+      <Modal isOpen={splitTx !== null} onClose={() => setSplitTx(null)} title={splitTx ? `${splitTx.description} · ${money(splitTx.amount, currencyOf(splitTx))}` : ''}>
         {splitTx && (
           <div className="space-y-4">
             {splitError && <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{splitError}</p>}
             <IncomeSplitEditor
               amount={splitTx.amount}
+              symbol={currencySymbol(currencyOf(splitTx))}
               value={draftSplit}
               onChange={(v) => { setDraftSplit(v); setSplitError(null); }}
               date={splitTx.date}

@@ -90,6 +90,30 @@ export const cleanSplit = (split?: PillarSplit): PillarSplit | undefined => {
 
 const COUNTED_TYPES: Transaction['type'][] = ['EXPENSE', 'PAY_DEBT', 'SAVE_FOR_GOAL', 'TRANSFER'];
 
+export type Currency = 'PEN' | 'USD';
+
+export const currencySymbol = (c: Currency) => (c === 'USD' ? '$' : 'S/');
+
+export const DEFAULT_USD_RATE = 3.5;
+
+// Currency of a movement: its account (or credit card); transfers use the source account
+export const makeCurrencyOf = (
+  accounts: { id: string; currency: Currency }[],
+  debts: { id: string; currency: Currency }[]
+) => (t: Transaction): Currency => {
+  if (t.type === 'TRANSFER') {
+    return (t.fromCurrency as Currency) || accounts.find((a) => a.id === t.fromAccountId)?.currency || 'PEN';
+  }
+  return accounts.find((a) => a.id === t.accountId)?.currency || debts.find((d) => d.id === t.accountId)?.currency || 'PEN';
+};
+
+// Pilares are counted in soles. Dollar movements use the rate frozen on them when registered
+// (pillarRate); older ones without it fall back to the current general rate.
+export type ToPen = (t: Transaction, value: number) => number;
+
+export const makeToPen = (currencyOf: (t: Transaction) => Currency, generalRate: number): ToPen =>
+  (t, value) => (currencyOf(t) === 'USD' ? multiplyMoney(value, t.pillarRate ?? generalRate) : value);
+
 export interface PillarStatus {
   meta: PillarMeta;
   target: number;
@@ -114,24 +138,36 @@ export const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() +
 // Month an income's split counts for: its own month unless the user moved it (e.g. salary paid early)
 export const incomeMonthKey = (t: Transaction) => t.pillarMonth ?? monthKey(t.date);
 
-export const computeMonthPillars = (transactions: Transaction[], month: number, year: number): MonthPillars => {
+export const computeMonthPillars = (
+  transactions: Transaction[],
+  month: number,
+  year: number,
+  toPen: ToPen = (_, value) => value
+): MonthPillars => {
   const monthTxs = transactions.filter((t) => !t.isAdjustment && inMonth(t.date, month, year));
   const key = `${year}-${String(month + 1).padStart(2, '0')}`;
   const monthIncomes = transactions.filter((t) => t.type === 'INCOME' && !t.isAdjustment && incomeMonthKey(t) === key);
   const incomes = monthIncomes.filter((t) => !t.excludeFromPillars);
   const hiddenIncomes = monthIncomes.filter((t) => t.excludeFromPillars);
-  const income = incomes.reduce((sum, t) => addMoney(sum, t.amount), 0);
-  const assigned = incomes.reduce((sum, t) => addMoney(sum, splitTotal(t.pillarSplit)), 0);
+  const sum = (txs: Transaction[], pick: (t: Transaction) => number) =>
+    txs.reduce((acc, t) => addMoney(acc, toPen(t, pick(t))), 0);
 
   const pillars = PILLARS.map((meta) => {
     const txs = monthTxs.filter((t) => t.pillar === meta.id && COUNTED_TYPES.includes(t.type));
-    const spent = txs.reduce((sum, t) => addMoney(sum, t.amount), 0);
-    const target = incomes.reduce((sum, t) => addMoney(sum, t.pillarSplit?.[meta.id] || 0), 0);
+    const spent = sum(txs, (t) => t.amount);
+    const target = sum(incomes, (t) => t.pillarSplit?.[meta.id] || 0);
     return { meta, target, spent, percent: target > 0 ? calcPercent(spent, target) : 0, transactions: txs };
   });
 
   const unassigned = monthTxs.filter((t) => t.type === 'EXPENSE' && !t.pillar);
-  return { income, assigned, incomes, hiddenIncomes, pillars, unassigned };
+  return {
+    income: sum(incomes, (t) => t.amount),
+    assigned: sum(incomes, (t) => splitTotal(t.pillarSplit)),
+    incomes,
+    hiddenIncomes,
+    pillars,
+    unassigned,
+  };
 };
 
 // ---- Threshold alerts (50%, 75%, 90%, 100%, over 100%) ----
@@ -168,14 +204,19 @@ const buildAlert = (status: PillarStatus, level: number): PillarAlert => {
 };
 
 // Compares pillar progress before/after saving transactions and returns the most important alert, if any.
-export const findPillarAlert = (before: Transaction[], after: Transaction[], dates: Date[]): PillarAlert | null => {
+export const findPillarAlert = (
+  before: Transaction[],
+  after: Transaction[],
+  dates: Date[],
+  toPen?: ToPen
+): PillarAlert | null => {
   const months = Array.from(new Set(dates.map((d) => `${d.getFullYear()}-${d.getMonth()}`)));
   let best: { score: number; alert: PillarAlert } | null = null;
 
   for (const key of months) {
     const [year, month] = key.split('-').map(Number);
-    const prev = computeMonthPillars(before, month, year);
-    const next = computeMonthPillars(after, month, year);
+    const prev = computeMonthPillars(before, month, year, toPen);
+    const next = computeMonthPillars(after, month, year, toPen);
 
     next.pillars.forEach((status, i) => {
       const level = crossed(prev.pillars[i].percent, status.percent);

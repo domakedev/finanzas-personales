@@ -117,6 +117,7 @@ interface Transaction {
   pillarSplit?: Partial<Record<Pillar, number>>; // Meta. INCOME: cuánto de ese ingreso asigna el usuario a cada pilar
   pillarMonth?: string;     // INCOME: 'YYYY-MM' al que cuenta el reparto si no es el mes de la fecha (sueldo cobrado antes)
   excludeFromPillars?: boolean; // INCOME que no cuenta en Pilares (devoluciones, dinero devuelto)
+  pillarRate?: number;      // Movimientos en dólares: soles por dólar fijado al registrarlos; Pilares cuenta en soles (amount × pillarRate)
   userId: string;
 }
 ```

@@ -7,6 +7,7 @@ import { subtractMoney } from "@/lib/utils";
 
 interface IncomeSplitEditorProps {
   amount: number;
+  symbol?: string; // currency symbol of the income
   value?: PillarSplit;
   onChange: (split: PillarSplit) => void;
   // Optional "cuenta para": the month this income's split counts for (defaults to the month it was received)
@@ -16,7 +17,7 @@ interface IncomeSplitEditorProps {
 }
 
 // The user decides how much of an income goes to each pillar; nothing is split automatically
-export const IncomeSplitEditor: React.FC<IncomeSplitEditorProps> = ({ amount, value, onChange, date, month, onMonthChange }) => {
+export const IncomeSplitEditor: React.FC<IncomeSplitEditorProps> = ({ amount, symbol = "S/", value, onChange, date, month, onMonthChange }) => {
   const split = value || {};
   const left = subtractMoney(amount, splitTotal(split));
 
@@ -90,7 +91,7 @@ export const IncomeSplitEditor: React.FC<IncomeSplitEditorProps> = ({ amount, va
         })}
       </div>
       <p className={`text-right text-xs tabular-nums ${left < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>
-        {left < 0 ? `Te pasaste por S/ ${Math.abs(left).toFixed(2)}` : `Sin repartir: S/ ${left.toFixed(2)}`}
+        {left < 0 ? `Te pasaste por ${symbol} ${Math.abs(left).toFixed(2)}` : `Sin repartir: ${symbol} ${left.toFixed(2)}`}
       </p>
     </div>
   );

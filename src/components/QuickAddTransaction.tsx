@@ -19,7 +19,7 @@ import {
 } from "@/lib/db";
 import { addMoney, subtractMoney } from "@/lib/utils";
 import { PillarPicker } from "@/components/pillars/PillarPicker";
-import { findPillarAlert, getPillar, PILLAR_PICK_TYPES, suggestPillar } from "@/lib/pillars";
+import { findPillarAlert, getPillar, makeCurrencyOf, makeToPen, PILLAR_PICK_TYPES, suggestPillar } from "@/lib/pillars";
 
 export const QuickAddTransaction: React.FC = () => {
   const { user: authUser } = useAuth();
@@ -34,6 +34,7 @@ export const QuickAddTransaction: React.FC = () => {
   const updateGoal = useStore((s) => s.updateGoal);
   const transactions = useStore((s) => s.transactions);
   const setPillarAlert = useStore((s) => s.setPillarAlert);
+  const usdRate = useStore((s) => s.usdRate);
 
   const [isOpen, setIsOpen] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -157,7 +158,11 @@ export const QuickAddTransaction: React.FC = () => {
         if (ptx.debtId) txData.debtId = ptx.debtId;
         if (ptx.goalId) txData.goalId = ptx.goalId;
         if (ptx.fromAccountId) txData.fromAccountId = ptx.fromAccountId;
-        if (PILLAR_PICK_TYPES.includes(ptx.type) && ptx.pillar) txData.pillar = ptx.pillar;
+        if (PILLAR_PICK_TYPES.includes(ptx.type) && ptx.pillar) {
+          txData.pillar = ptx.pillar;
+          // Dollar movements keep today's exchange rate for Pilares
+          if (makeCurrencyOf(accounts, debts)(txData) === "USD") txData.pillarRate = usdRate;
+        }
 
         // Save to Firebase
         const docRef = await addTransactionDB(user.uid, txData as Omit<Transaction, "id">);
@@ -240,7 +245,7 @@ export const QuickAddTransaction: React.FC = () => {
         }
       }
 
-      const alert = findPillarAlert(before, [...before, ...saved], saved.map((t) => t.date));
+      const alert = findPillarAlert(before, [...before, ...saved], saved.map((t) => t.date), makeToPen(makeCurrencyOf(accounts, debts), usdRate));
       if (alert) setPillarAlert(alert);
 
       setShowSuccess(true);

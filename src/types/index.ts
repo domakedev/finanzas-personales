@@ -34,6 +34,7 @@ export interface Transaction {
   pillarSplit?: Partial<Record<Pillar, number>>; // INCOME: how much of it the user assigns to each pillar (targets)
   pillarMonth?: string; // INCOME: 'YYYY-MM' the split counts for, when different from the date (e.g. salary paid on the 30th)
   excludeFromPillars?: boolean; // INCOME the user marked as not real income (refunds, returned money): ignored in Pilares
+  pillarRate?: number; // Dollar movements: soles per dollar frozen when registered, used to count them in Pilares
 }
 
 // AI-parsed transaction suggestion from voice/text input
