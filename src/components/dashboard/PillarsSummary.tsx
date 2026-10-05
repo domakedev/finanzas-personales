@@ -47,7 +47,10 @@ export const PillarsSummary: React.FC<PillarsSummaryProps> = ({ transactions, mo
                     <span className={`text-sm font-semibold tabular-nums ${over ? "text-red-600 dark:text-red-400" : ""}`}>
                       {percent.toFixed(0)}%
                     </span>
-                    <span className="text-[11px] text-muted-foreground">{meta.name}</span>
+                    <span className="text-center text-[11px] leading-tight text-muted-foreground">
+                      {meta.name}
+                      <span className="block font-semibold">{meta.percent}%</span>
+                    </span>
                   </div>
                 );
               })}

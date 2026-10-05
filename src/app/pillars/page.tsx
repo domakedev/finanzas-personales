@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
-import { ChevronLeft, ChevronRight, Check, AlertCircle, CalendarClock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, AlertCircle, CalendarClock, Info, Undo2, X, EyeOff, Eye } from 'lucide-react';
 import { deleteField } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
@@ -11,7 +11,7 @@ import { IncomeSplitEditor } from '@/components/pillars/IncomeSplitEditor';
 import { useStore } from '@/lib/store';
 import { updateTransaction as updateTransactionInDB } from '@/lib/db';
 import {
-  cleanSplit, computeMonthPillars, monthKey, PILLARS, PillarSplit, PillarStatus, splitTotal,
+  cleanSplit, computeMonthPillars, getPillar, monthKey, PILLARS, PillarSplit, PillarStatus, splitTotal,
 } from '@/lib/pillars';
 import { subtractMoney } from '@/lib/utils';
 import { Pillar, Transaction } from '@/types';
@@ -46,8 +46,17 @@ export default function PillarsPage() {
   const [draftSplit, setDraftSplit] = useState<PillarSplit>({});
   const [draftMonth, setDraftMonth] = useState<string | undefined>();
   const [splitError, setSplitError] = useState<string | null>(null);
+  const [lastAssigned, setLastAssigned] = useState<{ txId: string; description: string; pillar: Pillar } | null>(null);
+  const [showHidden, setShowHidden] = useState(false);
 
-  const { income, assigned, incomes, pillars, unassigned } = computeMonthPillars(transactions, cursor.month, cursor.year);
+  const { income, assigned, incomes, hiddenIncomes, pillars, unassigned } = computeMonthPillars(transactions, cursor.month, cursor.year);
+
+  // The undo bar disappears after a few seconds
+  useEffect(() => {
+    if (!lastAssigned) return;
+    const timer = setTimeout(() => setLastAssigned(null), 8000);
+    return () => clearTimeout(timer);
+  }, [lastAssigned]);
   const monthName = new Date(cursor.year, cursor.month, 1).toLocaleDateString('es-PE', { month: 'long' });
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name;
   const toSplit = Math.max(0, subtractMoney(income, assigned));
@@ -58,13 +67,38 @@ export default function PillarsPage() {
     setExpanded(null);
   };
 
-  const assignPillar = async (txId: string, pillar: Pillar) => {
+  const setTxPillar = async (txId: string, pillar: Pillar | undefined) => {
     setSavingId(txId);
     try {
-      await updateTransactionInDB(txId, { pillar });
+      await updateTransactionInDB(txId, { pillar: pillar ?? deleteField() } as unknown as Partial<Transaction>);
       updateTransaction(txId, { pillar });
+      return true;
     } catch (error) {
-      console.error('Error assigning pillar:', error);
+      console.error('Error updating pillar:', error);
+      return false;
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const assignPillar = async (tx: Transaction, pillar: Pillar) => {
+    if (await setTxPillar(tx.id, pillar)) setLastAssigned({ txId: tx.id, description: tx.description, pillar });
+  };
+
+  const undoAssign = async () => {
+    if (!lastAssigned) return;
+    const { txId } = lastAssigned;
+    setLastAssigned(null);
+    await setTxPillar(txId, undefined);
+  };
+
+  const setExcluded = async (txId: string, excluded: boolean) => {
+    setSavingId(txId);
+    try {
+      await updateTransactionInDB(txId, { excludeFromPillars: excluded || deleteField() } as unknown as Partial<Transaction>);
+      updateTransaction(txId, { excludeFromPillars: excluded || undefined });
+    } catch (error) {
+      console.error('Error excluding income:', error);
     } finally {
       setSavingId(null);
     }
@@ -156,8 +190,32 @@ export default function PillarsPage() {
                         <Icon className="h-5 w-5" />
                       </span>
                       <div className="flex-1">
-                        <p className="font-semibold">{meta.name}</p>
-                        <p className="text-xs text-muted-foreground">{meta.kind === 'goal' ? 'Meta' : 'Límite'}</p>
+                        <p className="flex items-center gap-1 font-semibold">
+                          {meta.name}
+                          <span className="group relative inline-flex">
+                            <button
+                              type="button"
+                              className="rounded-full p-0.5 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              aria-label={`Qué va en ${meta.name}`}
+                              aria-describedby={`pillar-info-${meta.id}`}
+                            >
+                              <Info className="h-3.5 w-3.5" />
+                            </button>
+                            <span
+                              id={`pillar-info-${meta.id}`}
+                              role="tooltip"
+                              className="pointer-events-none absolute left-1/2 top-full z-20 mt-1.5 w-60 -translate-x-1/2 rounded-md bg-foreground px-3 py-2 text-xs font-normal leading-snug text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                            >
+                              {meta.description}
+                            </span>
+                          </span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {meta.kind === 'goal' ? 'Meta' : 'Límite'} · <b className="font-semibold text-foreground">{meta.percent}%</b> de tus ingresos
+                          {income > 0 && target > 0 && Math.round((target / income) * 100) !== meta.percent && (
+                            <> · tu reparto {Math.round((target / income) * 100)}%</>
+                          )}
+                        </p>
                       </div>
                       {target > 0 && (
                         <span className={`text-2xl font-bold tabular-nums ${over ? 'text-red-600 dark:text-red-400' : ''}`}>
@@ -189,10 +247,19 @@ export default function PillarsPage() {
                       ) : (
                         <>
                           {visible.map((tx) => (
-                            <div key={tx.id} className="flex items-center gap-2 py-1 text-sm">
+                            <div key={tx.id} className="group flex items-center gap-2 py-1 text-sm">
                               <span className="min-w-0 flex-1 truncate">{tx.description}</span>
                               <span className="text-xs text-muted-foreground">{shortDate(tx.date)}</span>
                               <span className="w-20 text-right tabular-nums">{tx.amount.toFixed(2)}</span>
+                              <button
+                                onClick={() => setTxPillar(tx.id, undefined)}
+                                disabled={savingId === tx.id}
+                                className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                                aria-label={`Quitar pilar de ${tx.description}`}
+                                title="Quitar pilar"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
                             </div>
                           ))}
                           {sorted.length > 3 && (
@@ -227,39 +294,88 @@ export default function PillarsPage() {
                     const done = splitTotal(tx.pillarSplit);
                     const moved = tx.pillarMonth && tx.pillarMonth !== monthKey(tx.date);
                     return (
-                      <button
-                        key={tx.id}
-                        onClick={() => openSplit(tx)}
-                        className="block w-full space-y-1.5 rounded-md border-t border-border px-1 py-2.5 text-left first:border-0 hover:bg-muted"
-                        data-testid={`income-split-${tx.id}`}
-                      >
-                        <span className="flex items-center gap-2 text-sm">
-                          <span className="min-w-0 flex-1 truncate font-medium">{tx.description}</span>
-                          <span className="tabular-nums">{tx.amount.toFixed(2)}</span>
-                        </span>
-                        <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{shortDate(tx.date)}</span>
-                          {moved && (
-                            <span className="flex items-center gap-1"><CalendarClock className="h-3 w-3" /> cuenta para {monthName}</span>
-                          )}
-                          <span className={`ml-auto font-medium ${done > 0 ? '' : 'text-primary'}`}>{done > 0 ? 'Editar' : 'Repartir'}</span>
-                        </span>
-                        {done > 0 && (
-                          <span className="flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-muted">
-                            {PILLARS.filter((p) => tx.pillarSplit?.[p.id]).map((p) => (
-                              <span
-                                key={p.id}
-                                style={{ width: `${((tx.pillarSplit?.[p.id] || 0) / tx.amount) * 100}%`, backgroundColor: p.color }}
-                                title={p.name}
-                              />
-                            ))}
+                      <div key={tx.id} className="flex items-stretch gap-1 border-t border-border first:border-0">
+                        <button
+                          onClick={() => openSplit(tx)}
+                          className="block min-w-0 flex-1 space-y-1.5 rounded-md px-1 py-2.5 text-left hover:bg-muted"
+                          data-testid={`income-split-${tx.id}`}
+                        >
+                          <span className="flex items-center gap-2 text-sm">
+                            <span className="min-w-0 flex-1 truncate font-medium">{tx.description}</span>
+                            <span className="tabular-nums">{tx.amount.toFixed(2)}</span>
                           </span>
-                        )}
-                      </button>
+                          <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{shortDate(tx.date)}</span>
+                            {moved && (
+                              <span className="flex items-center gap-1"><CalendarClock className="h-3 w-3" /> cuenta para {monthName}</span>
+                            )}
+                            <span className={`ml-auto font-medium ${done > 0 ? '' : 'text-primary'}`}>{done > 0 ? 'Editar' : 'Repartir'}</span>
+                          </span>
+                          {done > 0 && (
+                            <span className="flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-muted">
+                              {PILLARS.filter((p) => tx.pillarSplit?.[p.id]).map((p) => (
+                                <span
+                                  key={p.id}
+                                  style={{ width: `${((tx.pillarSplit?.[p.id] || 0) / tx.amount) * 100}%`, backgroundColor: p.color }}
+                                  title={p.name}
+                                />
+                              ))}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setExcluded(tx.id, true)}
+                          disabled={savingId === tx.id}
+                          className="flex w-9 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          aria-label={`No contar ${tx.description}`}
+                          title="No contar (devolución, préstamo devuelto...)"
+                        >
+                          <EyeOff className="h-4 w-4" />
+                        </button>
+                      </div>
                     );
                   })}
+
+                {hiddenIncomes.length > 0 && (
+                  <div className="border-t border-border pt-2">
+                    <button
+                      onClick={() => setShowHidden(!showHidden)}
+                      className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      {hiddenIncomes.length === 1 ? '1 no cuenta' : `${hiddenIncomes.length} no cuentan`} · {showHidden ? 'ocultar' : 'ver'}
+                    </button>
+                    {showHidden && hiddenIncomes.map((tx) => (
+                      <div key={tx.id} className="flex items-center gap-2 py-1.5 text-sm text-muted-foreground">
+                        <span className="min-w-0 flex-1 truncate line-through">{tx.description}</span>
+                        <span className="tabular-nums">{tx.amount.toFixed(2)}</span>
+                        <button
+                          onClick={() => setExcluded(tx.id, false)}
+                          disabled={savingId === tx.id}
+                          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-muted"
+                        >
+                          <Eye className="h-3.5 w-3.5" /> Contar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
+
+            {lastAssigned && (
+              <div
+                role="status"
+                className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm shadow-sm"
+                data-testid="undo-assign"
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  <b>{lastAssigned.description}</b> → {getPillar(lastAssigned.pillar)?.name}
+                </span>
+                <button onClick={undoAssign} className="flex items-center gap-1 font-medium text-primary hover:underline">
+                  <Undo2 className="h-4 w-4" /> Deshacer
+                </button>
+              </div>
+            )}
 
             {unassigned.length > 0 && (
               <Card className="border-amber-300 dark:border-amber-800">
@@ -295,7 +411,7 @@ export default function PillarsPage() {
                               return (
                                 <button
                                   key={p.id}
-                                  onClick={() => assignPillar(tx.id, p.id)}
+                                  onClick={() => assignPillar(tx, p.id)}
                                   disabled={savingId === tx.id}
                                   className="flex h-9 w-9 items-center justify-center rounded-lg transition-transform hover:scale-110 disabled:opacity-50"
                                   style={{ backgroundColor: `${p.color}26`, color: p.color }}

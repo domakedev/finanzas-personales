@@ -152,6 +152,7 @@ Cada movimiento dice **para qué** es el dinero; la cuenta dice **dónde** está
 - Ahorrar o invertir no es un gasto: es una transferencia, a la que el usuario le pone el pilar (p. ej. Estabilidad).
 - La página **Pilares** muestra el mes: ingresos para repartir o editar su reparto, meta vs. avance por pilar, sus movimientos y los gastos sin pilar para asignarlos con un toque. El dashboard tiene un resumen con 4 anillos.
 - Al guardar un movimiento aparece un aviso si un pilar cruza 50%, 75%, 90%, 100% o se pasa del límite.
+- En Pilares: al asignar un gasto aparece **Deshacer**; la ✕ en los movimientos de un pilar le quita el pilar; el ojo tachado saca un ingreso que no es ingreso real (devoluciones) y se puede volver a **Contar**; la "i" de cada pilar explica qué va ahí; cada tarjeta muestra el % de la regla y "tu reparto" si difiere.
 
 ---
 

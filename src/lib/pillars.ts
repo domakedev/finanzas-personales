@@ -11,13 +11,26 @@ export interface PillarMeta {
   kind: 'goal' | 'limit';
   color: string;
   icon: LucideIcon;
+  description: string; // what kind of spending belongs here
 }
 
 export const PILLARS: PillarMeta[] = [
-  { id: 'GROWTH', name: 'Crecimiento', percent: 25, kind: 'goal', color: '#2a78d6', icon: TrendingUp },
-  { id: 'STABILITY', name: 'Estabilidad', percent: 15, kind: 'goal', color: '#1baf7a', icon: Shield },
-  { id: 'ESSENTIAL', name: 'Esenciales', percent: 50, kind: 'limit', color: '#eb6834', icon: Home },
-  { id: 'REWARD', name: 'Recompensas', percent: 10, kind: 'limit', color: '#eda100', icon: Star },
+  {
+    id: 'GROWTH', name: 'Crecimiento', percent: 25, kind: 'goal', color: '#2a78d6', icon: TrendingUp,
+    description: 'Lo que aumenta tu valor o tus ingresos: inversiones, cursos, libros, herramientas y gastos de tu negocio.',
+  },
+  {
+    id: 'STABILITY', name: 'Estabilidad', percent: 15, kind: 'goal', color: '#1baf7a', icon: Shield,
+    description: 'Tu colchón: fondo de emergencia y ahorro de seguridad, disponible rápido y sin riesgo.',
+  },
+  {
+    id: 'ESSENTIAL', name: 'Esenciales', percent: 50, kind: 'limit', color: '#eb6834', icon: Home,
+    description: 'Lo necesario para vivir y trabajar: vivienda, mercado, luz, agua, internet, pasajes, salud y cuotas de deudas.',
+  },
+  {
+    id: 'REWARD', name: 'Recompensas', percent: 10, kind: 'limit', color: '#eda100', icon: Star,
+    description: 'Gustos sin culpa: salidas, restaurantes, delivery, viajes, hobbies y regalos.',
+  },
 ];
 
 export const PILLAR_IDS = PILLARS.map((p) => p.id) as [Pillar, ...Pillar[]];
@@ -89,6 +102,7 @@ export interface MonthPillars {
   income: number;
   assigned: number; // part of the income the user split into pillars
   incomes: Transaction[];
+  hiddenIncomes: Transaction[]; // incomes the user excluded (refunds, returned money)
   pillars: PillarStatus[];
   unassigned: Transaction[]; // expenses without pillar
 }
@@ -103,7 +117,9 @@ export const incomeMonthKey = (t: Transaction) => t.pillarMonth ?? monthKey(t.da
 export const computeMonthPillars = (transactions: Transaction[], month: number, year: number): MonthPillars => {
   const monthTxs = transactions.filter((t) => !t.isAdjustment && inMonth(t.date, month, year));
   const key = `${year}-${String(month + 1).padStart(2, '0')}`;
-  const incomes = transactions.filter((t) => t.type === 'INCOME' && !t.isAdjustment && incomeMonthKey(t) === key);
+  const monthIncomes = transactions.filter((t) => t.type === 'INCOME' && !t.isAdjustment && incomeMonthKey(t) === key);
+  const incomes = monthIncomes.filter((t) => !t.excludeFromPillars);
+  const hiddenIncomes = monthIncomes.filter((t) => t.excludeFromPillars);
   const income = incomes.reduce((sum, t) => addMoney(sum, t.amount), 0);
   const assigned = incomes.reduce((sum, t) => addMoney(sum, splitTotal(t.pillarSplit)), 0);
 
@@ -115,7 +131,7 @@ export const computeMonthPillars = (transactions: Transaction[], month: number, 
   });
 
   const unassigned = monthTxs.filter((t) => t.type === 'EXPENSE' && !t.pillar);
-  return { income, assigned, incomes, pillars, unassigned };
+  return { income, assigned, incomes, hiddenIncomes, pillars, unassigned };
 };
 
 // ---- Threshold alerts (50%, 75%, 90%, 100%, over 100%) ----

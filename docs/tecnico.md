@@ -116,6 +116,7 @@ interface Transaction {
   pillar?: Pillar;          // Avance. EXPENSE (obligatorio en la UI), PAY_DEBT, SAVE_FOR_GOAL, TRANSFER: lo elige el usuario
   pillarSplit?: Partial<Record<Pillar, number>>; // Meta. INCOME: cuánto de ese ingreso asigna el usuario a cada pilar
   pillarMonth?: string;     // INCOME: 'YYYY-MM' al que cuenta el reparto si no es el mes de la fecha (sueldo cobrado antes)
+  excludeFromPillars?: boolean; // INCOME que no cuenta en Pilares (devoluciones, dinero devuelto)
   userId: string;
 }
 ```
