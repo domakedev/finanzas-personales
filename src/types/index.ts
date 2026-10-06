@@ -33,7 +33,7 @@ export interface Transaction {
   pillar?: Pillar; // EXPENSE / PAY_DEBT / SAVE_FOR_GOAL / TRANSFER: chosen by the user (progress)
   pillarSplit?: Partial<Record<Pillar, number>>; // INCOME: how much of it the user assigns to each pillar (targets)
   pillarMonth?: string; // INCOME: 'YYYY-MM' the split counts for, when different from the date (e.g. salary paid on the 30th)
-  excludeFromPillars?: boolean; // INCOME the user marked as not real income (refunds, returned money): ignored in Pilares
+  excludeFromPillars?: boolean; // INCOME / EXPENSE the user marked as not counting (refunds, returned money): ignored in Pilares
   pillarRate?: number; // Dollar movements: soles per dollar frozen when registered, used to count them in Pilares
 }
 

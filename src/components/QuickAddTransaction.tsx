@@ -132,12 +132,11 @@ export const QuickAddTransaction: React.FC = () => {
     setParsedTxs((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
   };
 
-  // Check if all transactions have required accountId (and expenses a pillar)
+  // Check if all transactions have required accountId (pillar is optional)
   const allHaveAccount = parsedTxs.every((t) => t.accountId);
-  const allHavePillar = parsedTxs.every((t) => t.type !== "EXPENSE" || t.pillar);
 
   const handleSaveAll = async () => {
-    if (!user || !allHaveAccount || !allHavePillar) return;
+    if (!user || !allHaveAccount) return;
     setIsSaving(true);
     setError(null);
     const before = transactions;
@@ -418,16 +417,11 @@ export const QuickAddTransaction: React.FC = () => {
 
                         {PILLAR_PICK_TYPES.includes(ptx.type) && (!ptx.pillar || isEditing) && (
                           <div className="space-y-1 pt-1">
-                            {!ptx.pillar && (
-                              <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                                <AlertCircle className="h-3 w-3" /> Elige un pilar
-                              </p>
-                            )}
+                            {!ptx.pillar && <p className="text-xs text-muted-foreground">Pilar (opcional)</p>}
                             <PillarPicker
                               compact
                               value={ptx.pillar}
                               suggested={suggestPillar(ptx.type, ptx.categoryId, accounts.find((a) => a.id === ptx.accountId)?.pillar)}
-                              allowNone={ptx.type !== "EXPENSE"}
                               onChange={(p) => updateParsed(ptx.id, { pillar: p })}
                             />
                           </div>
@@ -535,7 +529,7 @@ export const QuickAddTransaction: React.FC = () => {
                   {/* Save all button */}
                   <Button
                     onClick={handleSaveAll}
-                    disabled={isSaving || !allHaveAccount || !allHavePillar}
+                    disabled={isSaving || !allHaveAccount}
                     className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white"
                   >
                     {isSaving ? (
@@ -544,11 +538,6 @@ export const QuickAddTransaction: React.FC = () => {
                       <><Check className="mr-2 h-4 w-4" /> Guardar {parsedTxs.length} transacción{parsedTxs.length > 1 ? "es" : ""}</>
                     )}
                   </Button>
-                  {allHaveAccount && !allHavePillar && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
-                      ⚠️ Todos los gastos necesitan un pilar
-                    </p>
-                  )}
                   {!allHaveAccount && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
                       ⚠️ Todas las transacciones necesitan una cuenta asignada

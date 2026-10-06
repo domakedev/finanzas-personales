@@ -10,11 +10,10 @@ interface PillarPickerProps {
   value?: Pillar;
   onChange: (pillar: Pillar | undefined) => void;
   suggested?: Pillar; // hint only, never preselected
-  allowNone?: boolean;
   compact?: boolean;
 }
 
-export const PillarPicker: React.FC<PillarPickerProps> = ({ value, onChange, suggested, allowNone, compact }) => (
+export const PillarPicker: React.FC<PillarPickerProps> = ({ value, onChange, suggested, compact }) => (
   <div className="space-y-1">
     <div role="radiogroup" aria-label="Pilar" className="grid grid-cols-4 gap-2">
       {PILLARS.map((p) => {
@@ -26,7 +25,7 @@ export const PillarPicker: React.FC<PillarPickerProps> = ({ value, onChange, sug
             type="button"
             role="radio"
             aria-checked={selected}
-            onClick={() => onChange(p.id)}
+            onClick={() => onChange(selected ? undefined : p.id)}
             className={cn(
               "relative flex flex-col items-center gap-1 rounded-lg border-2 bg-card px-1 font-medium transition-colors",
               compact ? "py-1.5 text-[11px]" : "py-2.5 text-xs",
@@ -49,9 +48,9 @@ export const PillarPicker: React.FC<PillarPickerProps> = ({ value, onChange, sug
         );
       })}
     </div>
-    {allowNone && value && (
+    {value && (
       <button type="button" onClick={() => onChange(undefined)} className="text-xs text-muted-foreground underline">
-        Sin pilar
+        Quitar pilar
       </button>
     )}
   </div>

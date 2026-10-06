@@ -129,6 +129,7 @@ export interface MonthPillars {
   hiddenIncomes: Transaction[]; // incomes the user excluded (refunds, returned money)
   pillars: PillarStatus[];
   unassigned: Transaction[]; // expenses without pillar
+  hiddenExpenses: Transaction[]; // expenses without pillar the user excluded (refunds, returned money)
 }
 
 const inMonth = (d: Date, month: number, year: number) => d.getMonth() === month && d.getFullYear() === year;
@@ -159,7 +160,9 @@ export const computeMonthPillars = (
     return { meta, target, spent, percent: target > 0 ? calcPercent(spent, target) : 0, transactions: txs };
   });
 
-  const unassigned = monthTxs.filter((t) => t.type === 'EXPENSE' && !t.pillar);
+  const noPillar = monthTxs.filter((t) => t.type === 'EXPENSE' && !t.pillar);
+  const unassigned = noPillar.filter((t) => !t.excludeFromPillars);
+  const hiddenExpenses = noPillar.filter((t) => t.excludeFromPillars);
   return {
     income: sum(incomes, (t) => t.amount),
     assigned: sum(incomes, (t) => splitTotal(t.pillarSplit)),
@@ -167,6 +170,7 @@ export const computeMonthPillars = (
     hiddenIncomes,
     pillars,
     unassigned,
+    hiddenExpenses,
   };
 };
 

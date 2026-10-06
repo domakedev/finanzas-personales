@@ -53,11 +53,12 @@ export default function PillarsPage() {
   const [splitError, setSplitError] = useState<string | null>(null);
   const [lastAssigned, setLastAssigned] = useState<{ txId: string; description: string; pillar: Pillar } | null>(null);
   const [showHidden, setShowHidden] = useState(false);
+  const [showHiddenExpenses, setShowHiddenExpenses] = useState(false);
 
   // Pilares count in soles; dollar movements are converted with the rate frozen on them
   const currencyOf = makeCurrencyOf(accounts, debts);
   const toPen = makeToPen(currencyOf, usdRate);
-  const { income, assigned, incomes, hiddenIncomes, pillars, unassigned } =
+  const { income, assigned, incomes, hiddenIncomes, pillars, unassigned, hiddenExpenses } =
     computeMonthPillars(transactions, cursor.month, cursor.year, toPen);
   const txMoney = (tx: Transaction) => money(tx.amount, currencyOf(tx));
   const txPenHint = (tx: Transaction) =>
@@ -114,7 +115,7 @@ export default function PillarsPage() {
       await updateTransactionInDB(txId, { excludeFromPillars: excluded || deleteField() } as unknown as Partial<Transaction>);
       updateTransaction(txId, { excludeFromPillars: excluded || undefined });
     } catch (error) {
-      console.error('Error excluding income:', error);
+      console.error('Error excluding transaction:', error);
     } finally {
       setSavingId(null);
     }
@@ -411,9 +412,10 @@ export default function PillarsPage() {
               </div>
             )}
 
-            {unassigned.length > 0 && (
-              <Card className="border-amber-300 dark:border-amber-800">
+            {(unassigned.length > 0 || hiddenExpenses.length > 0) && (
+              <Card className={unassigned.length > 0 ? 'border-amber-300 dark:border-amber-800' : ''}>
                 <CardContent className="pt-5">
+                  {unassigned.length > 0 && (<>
                   <p className="flex items-center gap-2 font-semibold">
                     <AlertCircle className="h-4 w-4 text-amber-600" />
                     {unassigned.length} gasto{unassigned.length > 1 ? 's' : ''} sin pilar
@@ -456,10 +458,44 @@ export default function PillarsPage() {
                                 </button>
                               );
                             })}
+                            <button
+                              onClick={() => setExcluded(tx.id, true)}
+                              disabled={savingId === tx.id}
+                              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                              aria-label={`No contar ${tx.description}`}
+                              title="No contar (devolución, préstamo...)"
+                            >
+                              <EyeOff className="h-4 w-4" />
+                            </button>
                           </div>
                         </div>
                       ))}
                   </div>
+                  </>)}
+
+                  {hiddenExpenses.length > 0 && (
+                    <div className={unassigned.length > 0 ? 'border-t border-border pt-2' : ''}>
+                      <button
+                        onClick={() => setShowHiddenExpenses(!showHiddenExpenses)}
+                        className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        {hiddenExpenses.length === 1 ? '1 gasto no cuenta' : `${hiddenExpenses.length} gastos no cuentan`} · {showHiddenExpenses ? 'ocultar' : 'ver'}
+                      </button>
+                      {showHiddenExpenses && hiddenExpenses.map((tx) => (
+                        <div key={tx.id} className="flex items-center gap-2 py-1.5 text-sm text-muted-foreground">
+                          <span className="min-w-0 flex-1 truncate line-through">{tx.description}</span>
+                          <span className="tabular-nums">{txMoney(tx)}</span>
+                          <button
+                            onClick={() => setExcluded(tx.id, false)}
+                            disabled={savingId === tx.id}
+                            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-muted"
+                          >
+                            <Eye className="h-3.5 w-3.5" /> Contar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

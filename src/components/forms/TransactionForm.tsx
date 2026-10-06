@@ -155,9 +155,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     data: TransactionFormData
   ): string | null => {
     // Validate EXPENSE
-    if (data.type === "EXPENSE" && !data.pillar) {
-      return "Elige a qué pilar pertenece este gasto";
-    }
     if (data.type === "INCOME" && splitTotal(data.pillarSplit) > data.amount) {
       return "Repartiste más de lo que ingresó";
     }
@@ -1025,11 +1022,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 
       {PILLAR_PICK_TYPES.includes(transactionType) && (
         <div className="space-y-2">
-          <label className="text-sm font-medium">Pilar</label>
+          <label className="text-sm font-medium">Pilar <span className="font-normal text-muted-foreground">(opcional)</span></label>
           <PillarPicker
             value={pillar}
             suggested={suggestedPillar}
-            allowNone={transactionType !== "EXPENSE"}
             onChange={(p) => {
               setValue("pillar", p);
               setValidationError(null);
