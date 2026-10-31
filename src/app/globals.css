@@ -68,6 +68,19 @@
   --radius-sm: calc(0.5rem - 4px);
 }
 
+/* Tailwind v4 gives buttons the default arrow: show the hand on anything clickable */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  [role="switch"]:not(:disabled),
+  select,
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="date"] {
+    cursor: pointer;
+  }
+}
+
 /* Custom Keyframe Animations */
 @keyframes fadeIn {
   from {
