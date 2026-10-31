@@ -98,6 +98,20 @@ export default function PillarsPage() {
     }
   };
 
+  // "Cuenta para" on a pillar movement: count it in the month after its date, or back in its own month
+  const toggleNextMonth = async (tx: Transaction) => {
+    const month = tx.pillarMonth ? undefined : monthKey(new Date(tx.date.getFullYear(), tx.date.getMonth() + 1, 1));
+    setSavingId(tx.id);
+    try {
+      await updateTransactionInDB(tx.id, { pillarMonth: month ?? deleteField() } as unknown as Partial<Transaction>);
+      updateTransaction(tx.id, { pillarMonth: month });
+    } catch (error) {
+      console.error('Error moving pillar month:', error);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const assignPillar = async (tx: Transaction, pillar: Pillar) => {
     if (await setTxPillar(tx.id, pillar)) setLastAssigned({ txId: tx.id, description: tx.description, pillar });
   };
@@ -281,11 +295,27 @@ export default function PillarsPage() {
                         <p className="py-1 text-xs text-muted-foreground">Sin movimientos este mes</p>
                       ) : (
                         <>
-                          {visible.map((tx) => (
+                          {visible.map((tx) => {
+                            const moved = !!tx.pillarMonth;
+                            const otherMonth = new Date(tx.date.getFullYear(), tx.date.getMonth() + (moved ? 0 : 1), 1)
+                              .toLocaleDateString('es-PE', { month: 'long' });
+                            return (
                             <div key={tx.id} className="group flex items-center gap-2 py-1 text-sm">
                               <span className="min-w-0 flex-1 truncate">{tx.description}</span>
-                              <span className="text-xs text-muted-foreground">{shortDate(tx.date)}</span>
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground" title={moved ? `Cuenta para ${monthName}` : undefined}>
+                                {moved && <CalendarClock className="h-3 w-3" />}
+                                {shortDate(tx.date)}
+                              </span>
                               <span className="w-28 text-right tabular-nums" title={txPenHint(tx)}>{txMoney(tx)}</span>
+                              <button
+                                onClick={() => toggleNextMonth(tx)}
+                                disabled={savingId === tx.id}
+                                className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                                aria-label={`Contar ${tx.description} en ${otherMonth}`}
+                                title={moved ? `Volver a ${otherMonth}` : `Contar en ${otherMonth}`}
+                              >
+                                <CalendarClock className="h-3.5 w-3.5" />
+                              </button>
                               <button
                                 onClick={() => setTxPillar(tx.id, undefined)}
                                 disabled={savingId === tx.id}
@@ -296,7 +326,8 @@ export default function PillarsPage() {
                                 <X className="h-3.5 w-3.5" />
                               </button>
                             </div>
-                          ))}
+                            );
+                          })}
                           {sorted.length > 3 && (
                             <button
                               onClick={() => setExpanded(isOpen ? null : meta.id)}

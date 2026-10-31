@@ -21,7 +21,8 @@ import { addMoney } from "@/lib/utils";
 import { deleteField } from "firebase/firestore";
 import { PillarPicker } from "@/components/pillars/PillarPicker";
 import { IncomeSplitEditor } from "@/components/pillars/IncomeSplitEditor";
-import { cleanSplit, currencySymbol, findPillarAlert, makeCurrencyOf, makeToPen, PILLAR_PICK_TYPES, splitTotal, suggestPillar } from "@/lib/pillars";
+import { PillarMonthInput } from "@/components/pillars/PillarMonthInput";
+import { cleanSplit, currencySymbol, findPillarAlert, makeCurrencyOf, makeToPen, PILLAR_PICK_TYPES, pillarMonthDate, splitTotal, suggestPillar } from "@/lib/pillars";
 
 interface TransactionFormProps {
   onSuccess: () => void;
@@ -366,8 +367,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       const isUsd = makeCurrencyOf(accounts, debts)(newTransaction as Transaction) === "USD";
       if (isUsd && (txPillar || txSplit)) newTransaction.pillarRate = transaction?.pillarRate ?? usdRate;
       else delete newTransaction.pillarRate;
-      // The "cuenta para" month is independent of the split (an income can be moved before splitting it)
-      if (data.type !== "INCOME" || !data.pillarMonth) delete newTransaction.pillarMonth;
+      // "Cuenta para": incomes keep it independent of the split (an income can be moved before splitting it);
+      // other movements only while they have a pillar
+      if (!data.pillarMonth || (data.type !== "INCOME" && !txPillar)) delete newTransaction.pillarMonth;
 
       // Calculate converted amount for cross-currency transfers
       if (data.type === "TRANSFER" && data.fromAccountId) {
@@ -774,7 +776,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       // Milestone alert (50/75/90/100%/over) for the pillar this movement touched
       const savedTx = { ...newTransaction, id: transaction?.id ?? "new", createdAt: new Date() } as Transaction;
       const after = [...transactions.filter((t) => t.id !== transaction?.id), savedTx];
-      const alert = findPillarAlert(transactions, after, [savedTx.date], makeToPen(makeCurrencyOf(accounts, debts), usdRate));
+      const alert = findPillarAlert(transactions, after, [pillarMonthDate(savedTx)], makeToPen(makeCurrencyOf(accounts, debts), usdRate));
       if (alert) setPillarAlert(alert);
 
       reset();
@@ -1031,6 +1033,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
               setValidationError(null);
             }}
           />
+          {pillar && typeof dateWatch === "string" && dateWatch && (
+            <PillarMonthInput
+              date={new Date(dateWatch + "T00:00:00")}
+              month={pillarMonth}
+              onChange={(m) => setValue("pillarMonth", m)}
+            />
+          )}
         </div>
       )}
 

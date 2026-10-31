@@ -19,7 +19,7 @@ import {
 } from "@/lib/db";
 import { addMoney, subtractMoney } from "@/lib/utils";
 import { PillarPicker } from "@/components/pillars/PillarPicker";
-import { findPillarAlert, getPillar, makeCurrencyOf, makeToPen, PILLAR_PICK_TYPES, suggestPillar } from "@/lib/pillars";
+import { findPillarAlert, getPillar, makeCurrencyOf, makeToPen, PILLAR_PICK_TYPES, pillarMonthDate, suggestPillar } from "@/lib/pillars";
 
 export const QuickAddTransaction: React.FC = () => {
   const { user: authUser } = useAuth();
@@ -244,7 +244,7 @@ export const QuickAddTransaction: React.FC = () => {
         }
       }
 
-      const alert = findPillarAlert(before, [...before, ...saved], saved.map((t) => t.date), makeToPen(makeCurrencyOf(accounts, debts), usdRate));
+      const alert = findPillarAlert(before, [...before, ...saved], saved.map(pillarMonthDate), makeToPen(makeCurrencyOf(accounts, debts), usdRate));
       if (alert) setPillarAlert(alert);
 
       setShowSuccess(true);

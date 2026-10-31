@@ -132,12 +132,17 @@ export interface MonthPillars {
   hiddenExpenses: Transaction[]; // expenses without pillar the user excluded (refunds, returned money)
 }
 
-const inMonth = (d: Date, month: number, year: number) => d.getMonth() === month && d.getFullYear() === year;
-
 export const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
-// Month an income's split counts for: its own month unless the user moved it (e.g. salary paid early)
-export const incomeMonthKey = (t: Transaction) => t.pillarMonth ?? monthKey(t.date);
+// Month a movement counts for in Pilares: its own month unless the user moved it
+// (e.g. salary paid early, or the saving transfer made with it)
+export const pillarMonthKey = (t: Transaction) => t.pillarMonth ?? monthKey(t.date);
+
+// First day of that month, for code that works with dates
+export const pillarMonthDate = (t: Transaction) => {
+  const [year, month] = pillarMonthKey(t).split('-').map(Number);
+  return new Date(year, month - 1, 1);
+};
 
 export const computeMonthPillars = (
   transactions: Transaction[],
@@ -145,9 +150,9 @@ export const computeMonthPillars = (
   year: number,
   toPen: ToPen = (_, value) => value
 ): MonthPillars => {
-  const monthTxs = transactions.filter((t) => !t.isAdjustment && inMonth(t.date, month, year));
   const key = `${year}-${String(month + 1).padStart(2, '0')}`;
-  const monthIncomes = transactions.filter((t) => t.type === 'INCOME' && !t.isAdjustment && incomeMonthKey(t) === key);
+  const monthTxs = transactions.filter((t) => !t.isAdjustment && pillarMonthKey(t) === key);
+  const monthIncomes = monthTxs.filter((t) => t.type === 'INCOME');
   const incomes = monthIncomes.filter((t) => !t.excludeFromPillars);
   const hiddenIncomes = monthIncomes.filter((t) => t.excludeFromPillars);
   const sum = (txs: Transaction[], pick: (t: Transaction) => number) =>

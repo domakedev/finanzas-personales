@@ -2,7 +2,8 @@
 
 import React from "react";
 import { Wand2 } from "lucide-react";
-import { PILLARS, PillarSplit, fillSplit, monthKey, splitTotal } from "@/lib/pillars";
+import { PILLARS, PillarSplit, fillSplit, splitTotal } from "@/lib/pillars";
+import { PillarMonthInput } from "./PillarMonthInput";
 import { subtractMoney } from "@/lib/utils";
 
 interface IncomeSplitEditorProps {
@@ -23,22 +24,7 @@ export const IncomeSplitEditor: React.FC<IncomeSplitEditorProps> = ({ amount, sy
 
   return (
     <div className="space-y-3">
-      {date && onMonthChange && (
-        <div className="flex items-center gap-3">
-          <label htmlFor="split-month" className="text-sm font-medium">Cuenta para</label>
-          <input
-            id="split-month"
-            type="month"
-            value={month ?? monthKey(date)}
-            onChange={(e) => onMonthChange(!e.target.value || e.target.value === monthKey(date) ? undefined : e.target.value)}
-            className="h-9 flex-1 rounded-md border border-input bg-background px-2 text-sm capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            data-testid="split-month-input"
-          />
-          <span className="text-xs text-muted-foreground">
-            Recibido: {date.toLocaleDateString("es-PE", { day: "numeric", month: "short" })}
-          </span>
-        </div>
-      )}
+      {date && onMonthChange && <PillarMonthInput date={date} month={month} onChange={onMonthChange} />}
 
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">Repartir en pilares</span>
