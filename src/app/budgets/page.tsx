@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { Modal } from '@/components/ui/Modal';
 import { BudgetForm } from '@/components/budgets/BudgetForm';
-import { BudgetBar, BudgetPercent, budgetAmounts, PeriodBadge, useBudgetStatuses } from '@/components/budgets/BudgetBits';
+import { BudgetBar, BudgetPercent, budgetAmounts, PeriodBadge, StartBadge, useBudgetStatuses } from '@/components/budgets/BudgetBits';
 import { useStore } from '@/lib/store';
 import { deleteBudget as deleteBudgetInDB } from '@/lib/db';
 import { PILLARS } from '@/lib/pillars';
@@ -87,6 +87,7 @@ export default function BudgetsPage() {
                         <div className="flex min-w-0 flex-[1_1_180px] items-center gap-2">
                           <span className="truncate font-semibold">{b.name}</span>
                           <PeriodBadge budget={b} />
+                          {s.upcoming && <StartBadge budget={b} />}
                           {s.ended && <span className="text-xs text-muted-foreground">terminó</span>}
                         </div>
                         <div className="flex min-w-0 flex-[2_1_220px] items-center gap-3">

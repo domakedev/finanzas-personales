@@ -33,7 +33,7 @@ export default function Dashboard() {
     goals,
     categories
   } = useStore();
-  const budgetStatuses = useBudgetStatuses().filter((s) => !s.ended);
+  const budgetStatuses = useBudgetStatuses().filter((s) => !s.ended && !s.upcoming);
 
   // Calculate total balances
   const totalBalancePEN = accounts.filter(a => a.currency === 'PEN').reduce((sum, acc) => addMoney(sum, acc.balance), 0);

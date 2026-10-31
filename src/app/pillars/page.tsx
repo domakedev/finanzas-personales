@@ -2,14 +2,18 @@
 
 import React, { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
-import { ChevronLeft, ChevronRight, Check, AlertCircle, CalendarClock, Info, Undo2, X, EyeOff, Eye, Plus } from 'lucide-react';
+import {
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Check, AlertCircle, CalendarClock, CalendarDays, Info, Undo2, X, EyeOff, Eye, Plus,
+  ReceiptText, ArrowLeftRight, PiggyBank, CreditCard, type LucideIcon,
+} from 'lucide-react';
 import { deleteField } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { IncomeSplitEditor } from '@/components/pillars/IncomeSplitEditor';
 import { BudgetForm } from '@/components/budgets/BudgetForm';
-import { BudgetBar, BudgetPercent, budgetAmounts, BudgetStatusLink, PeriodBadge, useBudgetStatuses } from '@/components/budgets/BudgetBits';
+import { BudgetBar, BudgetPercent, budgetAmounts, BudgetStatusLink, PeriodBadge, StartBadge, useBudgetStatuses } from '@/components/budgets/BudgetBits';
+import { BudgetStatus, computeBudgetStatus, monthViewDate } from '@/lib/budgets';
 import { useStore } from '@/lib/store';
 import { updateTransaction as updateTransactionInDB } from '@/lib/db';
 import {
@@ -21,6 +25,14 @@ import { Budget, Pillar, Transaction } from '@/types';
 
 const money = (v: number, currency: Currency = 'PEN') =>
   `${currencySymbol(currency)} ${v.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// Icon of each movement in a pillar card
+const TX_ICON: Partial<Record<Transaction['type'], LucideIcon>> = {
+  EXPENSE: ReceiptText,
+  TRANSFER: ArrowLeftRight,
+  SAVE_FOR_GOAL: PiggyBank,
+  PAY_DEBT: CreditCard,
+};
+
 const shortDate = (d: Date) => d.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
 
 const statusLine = ({ meta, target, spent }: PillarStatus) => {
@@ -56,7 +68,8 @@ export default function PillarsPage() {
   const [lastAssigned, setLastAssigned] = useState<{ txId: string; description: string; pillar: Pillar } | null>(null);
   const [showHidden, setShowHidden] = useState(false);
   const [showHiddenExpenses, setShowHiddenExpenses] = useState(false);
-  const [budgetForm, setBudgetForm] = useState<{ budget?: Budget; pillar?: Pillar } | null>(null);
+  const [budgetForm, setBudgetForm] = useState<{ budget?: Budget; pillar?: Pillar; startDate?: Date } | null>(null);
+  const budgets = useStore((s) => s.budgets);
   const budgetStatuses = useBudgetStatuses();
 
   // Pilares count in soles; dollar movements are converted with the rate frozen on them
@@ -79,9 +92,16 @@ export default function PillarsPage() {
   const monthName = new Date(cursor.year, cursor.month, 1).toLocaleDateString('es-PE', { month: 'long' });
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name;
   const toSplit = Math.max(0, subtractMoney(income, assigned));
-  // Budgets show their current period, so only next to the current month
+  // Budgets in any month: the period running today, at the end of past months or starting in future ones
   const today = new Date();
-  const isCurrentMonth = cursor.month === today.getMonth() && cursor.year === today.getFullYear();
+  const isFutureMonth = new Date(cursor.year, cursor.month, 1) > today;
+  const monthBudgets = budgets
+    .map((b) => {
+      const at = monthViewDate(b, cursor.year, cursor.month, today);
+      return at ? computeBudgetStatus(b, transactions, toPen, today, at) : null;
+    })
+    .filter((s): s is BudgetStatus => !!s && !s.ended)
+    .sort((a, b) => a.budget.name.localeCompare(b.budget.name));
 
   const shiftMonth = (delta: number) => {
     const d = new Date(cursor.year, cursor.month + delta, 1);
@@ -197,6 +217,11 @@ export default function PillarsPage() {
             <button onClick={() => shiftMonth(1)} className="rounded-full p-2 hover:bg-muted" aria-label="Mes siguiente">
               <ChevronRight className="h-5 w-5" />
             </button>
+            {isFutureMonth && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
+                <CalendarDays className="h-3.5 w-3.5" /> Por venir
+              </span>
+            )}
             <span className="ml-2 hidden sm:inline-flex">
               <BudgetStatusLink statuses={budgetStatuses} />
             </span>
@@ -303,81 +328,92 @@ export default function PillarsPage() {
                       </p>
                     </div>
 
-                    {isCurrentMonth && (
-                      <div className="space-y-1.5" data-testid={`pillar-budgets-${meta.id}`}>
-                        {budgetStatuses
-                          .filter((s) => s.budget.pillar === meta.id && !s.ended)
-                          .map((s) => (
-                            <button
-                              key={s.budget.id}
-                              onClick={() => setBudgetForm({ budget: s.budget })}
-                              className="block w-full space-y-1.5 rounded-lg bg-muted/60 px-3 py-2.5 text-left hover:bg-muted"
-                              aria-label={`Editar presupuesto ${s.budget.name}`}
-                            >
-                              <span className="flex items-center gap-2 text-sm">
-                                <span className="min-w-0 truncate font-semibold">{s.budget.name}</span>
-                                <PeriodBadge budget={s.budget} />
-                                <span className="flex-1" />
-                                <span className="tabular-nums text-muted-foreground">{budgetAmounts(s)}</span>
-                                <BudgetPercent status={s} className="min-w-12" />
-                              </span>
-                              <BudgetBar status={s} />
-                            </button>
-                          ))}
-                        <button
-                          onClick={() => setBudgetForm({ pillar: meta.id })}
-                          className="flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-                          aria-label={`Nuevo presupuesto en ${meta.name}`}
-                        >
-                          <Plus className="h-3.5 w-3.5" /> Presupuesto
-                        </button>
-                      </div>
-                    )}
+                    <div className="space-y-1.5" data-testid={`pillar-budgets-${meta.id}`}>
+                      {monthBudgets
+                        .filter((s) => s.budget.pillar === meta.id)
+                        .map((s) => (
+                          <button
+                            key={s.budget.id}
+                            onClick={() => setBudgetForm({ budget: s.budget })}
+                            className="block w-full space-y-1.5 rounded-lg bg-muted/60 px-3 py-2.5 text-left hover:bg-muted"
+                            aria-label={`Editar presupuesto ${s.budget.name}`}
+                          >
+                            <span className="flex items-center gap-2 text-sm">
+                              <span className="min-w-0 truncate font-semibold">{s.budget.name}</span>
+                              <PeriodBadge budget={s.budget} />
+                              {s.upcoming && <StartBadge budget={s.budget} />}
+                              <span className="flex-1" />
+                              <span className="tabular-nums text-muted-foreground">{budgetAmounts(s)}</span>
+                              <BudgetPercent status={s} className="min-w-12" />
+                            </span>
+                            <BudgetBar status={s} />
+                          </button>
+                        ))}
+                      <button
+                        onClick={() => setBudgetForm({ pillar: meta.id, startDate: isFutureMonth ? new Date(cursor.year, cursor.month, 1) : undefined })}
+                        className="flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label={`Nuevo presupuesto en ${meta.name}`}
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Presupuesto
+                      </button>
+                    </div>
 
-                    <div className="mt-auto border-t border-border pt-2">
+                    <div className="mt-auto divide-y divide-border overflow-hidden rounded-xl border border-border">
                       {sorted.length === 0 ? (
-                        <p className="py-1 text-xs text-muted-foreground">Sin movimientos este mes</p>
+                        <p className="flex min-h-12 items-center justify-center gap-1.5 text-sm text-muted-foreground">
+                          <ReceiptText className="h-4 w-4" /> Sin movimientos
+                        </p>
                       ) : (
                         <>
                           {visible.map((tx) => {
                             const moved = !!tx.pillarMonth;
                             const otherMonth = new Date(tx.date.getFullYear(), tx.date.getMonth() + (moved ? 0 : 1), 1)
                               .toLocaleDateString('es-PE', { month: 'long' });
+                            const TxIcon = TX_ICON[tx.type] ?? ReceiptText;
                             return (
-                            <div key={tx.id} className="group flex items-center gap-2 py-1 text-sm">
-                              <span className="min-w-0 flex-1 truncate">{tx.description}</span>
-                              <span className="flex items-center gap-1 text-xs text-muted-foreground" title={moved ? `Cuenta para ${monthName}` : undefined}>
-                                {moved && <CalendarClock className="h-3 w-3" />}
-                                {shortDate(tx.date)}
+                            <div key={tx.id} className="group flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50">
+                              <span
+                                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
+                                style={{ backgroundColor: `${meta.color}26`, color: meta.color }}
+                              >
+                                <TxIcon className="h-4 w-4" />
                               </span>
-                              <span className="w-28 text-right tabular-nums" title={txPenHint(tx)}>{txMoney(tx)}</span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-medium">{tx.description}</span>
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground" title={moved ? `Cuenta para ${monthName}` : undefined}>
+                                  {moved && <CalendarClock className="h-3 w-3" />}
+                                  {shortDate(tx.date)}
+                                </span>
+                              </span>
                               <button
                                 onClick={() => toggleNextMonth(tx)}
                                 disabled={savingId === tx.id}
-                                className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                                 aria-label={`Contar ${tx.description} en ${otherMonth}`}
                                 title={moved ? `Volver a ${otherMonth}` : `Contar en ${otherMonth}`}
                               >
-                                <CalendarClock className="h-3.5 w-3.5" />
+                                <CalendarClock className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={() => setTxPillar(tx.id, undefined)}
                                 disabled={savingId === tx.id}
-                                className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                                 aria-label={`Quitar pilar de ${tx.description}`}
                                 title="Quitar pilar"
                               >
-                                <X className="h-3.5 w-3.5" />
+                                <X className="h-4 w-4" />
                               </button>
+                              <span className="text-right text-sm font-semibold tabular-nums" title={txPenHint(tx)}>{txMoney(tx)}</span>
                             </div>
                             );
                           })}
                           {sorted.length > 3 && (
                             <button
                               onClick={() => setExpanded(isOpen ? null : meta.id)}
-                              className="pt-1 text-xs font-medium text-primary hover:underline"
+                              className="flex h-10 w-full items-center justify-center gap-1 text-sm font-semibold text-primary hover:bg-muted/50"
                             >
                               {isOpen ? 'Ver menos' : `Ver todos (${sorted.length})`}
+                              {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                             </button>
                           )}
                         </>
@@ -583,7 +619,7 @@ export default function PillarsPage() {
         onClose={() => setBudgetForm(null)}
         title={budgetForm?.budget ? 'Editar presupuesto' : 'Nuevo presupuesto'}
       >
-        {budgetForm && <BudgetForm budget={budgetForm.budget} pillar={budgetForm.pillar} onDone={() => setBudgetForm(null)} />}
+        {budgetForm && <BudgetForm budget={budgetForm.budget} pillar={budgetForm.pillar} startDate={budgetForm.startDate} onDone={() => setBudgetForm(null)} />}
       </Modal>
 
       <Modal isOpen={splitTx !== null} onClose={() => setSplitTx(null)} title={splitTx ? `${splitTx.description} · ${money(splitTx.amount, currencyOf(splitTx))}` : ''}>

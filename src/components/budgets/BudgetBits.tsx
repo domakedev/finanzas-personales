@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { AlertCircle, AlertTriangle, Check, Repeat } from "lucide-react";
+import { AlertCircle, AlertTriangle, CalendarDays, Check, Repeat } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { BudgetStatus, computeBudgetStatus, fmtAmount, periodLabel } from "@/lib/budgets";
 import { getPillar, makeCurrencyOf, makeToPen } from "@/lib/pillars";
@@ -28,6 +28,14 @@ export const PeriodBadge: React.FC<{ budget: Budget }> = ({ budget }) => (
   <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
     {budget.repeat && <Repeat className="h-3 w-3" role="img" aria-label="Se repite" />}
     {periodLabel(budget)}
+  </span>
+);
+
+// Budgets planned ahead show the day they start
+export const StartBadge: React.FC<{ budget: Budget }> = ({ budget }) => (
+  <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+    <CalendarDays className="h-3 w-3" role="img" aria-label="Empieza" />
+    {budget.startDate.toLocaleDateString("es-PE", { day: "numeric", month: "short" })}
   </span>
 );
 
@@ -59,7 +67,7 @@ export const BudgetBar: React.FC<{ status: BudgetStatus; className?: string }> =
 
 // "Presupuestos ✓3 ⚠1 ⓘ1": how the running budgets are doing, good and bad
 export const BudgetStatusLink: React.FC<{ statuses: BudgetStatus[] }> = ({ statuses }) => {
-  const active = statuses.filter((s) => !s.ended);
+  const active = statuses.filter((s) => !s.ended && !s.upcoming);
   const ok = active.filter((s) => s.state === "ok").length;
   const near = active.filter((s) => s.state === "near").length;
   const over = active.length - ok - near;

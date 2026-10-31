@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Bell, Plus, Repeat } from "lucide-react";
+import { Bell, CalendarDays, Plus, Repeat } from "lucide-react";
 import { deleteField } from "firebase/firestore";
 import { Button } from "@/components/ui/Button";
 import { TRANSACTION_CATEGORIES } from "@/constants/categories";
@@ -14,6 +14,12 @@ import { cn } from "@/lib/utils";
 import { Budget, BudgetPeriod, Pillar } from "@/types";
 
 const dayLabel = (d: Date) => d.toLocaleDateString("es-PE", { weekday: "short", day: "numeric", month: "short" });
+const toInputDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const fromInputDate = (v: string) => {
+  const [y, m, d] = v.split("-").map(Number);
+  return y && m && d ? new Date(y, m - 1, d) : null;
+};
 
 const chipClass = (on: boolean) =>
   cn(
@@ -24,10 +30,11 @@ const chipClass = (on: boolean) =>
 interface BudgetFormProps {
   budget?: Budget; // edit
   pillar?: Pillar; // create from a pillar card
+  startDate?: Date; // create: first day of the month being planned (defaults to today)
   onDone: () => void;
 }
 
-export const BudgetForm: React.FC<BudgetFormProps> = ({ budget, pillar: initialPillar, onDone }) => {
+export const BudgetForm: React.FC<BudgetFormProps> = ({ budget, pillar: initialPillar, startDate: initialStart, onDone }) => {
   const { user } = useAuth();
   const categories = useStore((s) => s.categories);
   const transactions = useStore((s) => s.transactions);
@@ -43,6 +50,7 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({ budget, pillar: initialP
   const [period, setPeriod] = useState<BudgetPeriod>(budget?.period ?? "WEEKLY");
   const [days, setDays] = useState(String(budget?.days ?? 10));
   const [repeat, setRepeat] = useState(budget?.repeat ?? false);
+  const [start, setStart] = useState<string | null>(budget ? toInputDate(budget.startDate) : null); // null: default
   const [categoryIds, setCategoryIds] = useState<string[]>(budget?.categoryIds ?? []);
   const [alerts, setAlerts] = useState<number[]>(budget?.alerts ?? BUDGET_ALERT_LEVELS);
   const [showAll, setShowAll] = useState(false);
@@ -53,10 +61,14 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({ budget, pillar: initialP
   const meta = getPillar(pillar)!;
   const value = Number(amount) || 0;
   const n = parseInt(days, 10) || 0;
-  const startDate = budget?.startDate ?? startOfDay(now);
+  // Default: today, or when planning a future month its first day (first Monday for weekly budgets)
+  const plannedStart = startOfDay(initialStart ?? now);
+  const defaultStart = initialStart && period === "WEEKLY" ? addDays(plannedStart, (8 - plannedStart.getDay()) % 7) : plannedStart;
+  const startDate = start === null ? defaultStart : fromInputDate(start);
 
   // When this period ends / starts again, so "Repetir" is never ambiguous
-  const current = windowContaining({ period, days: Math.max(1, n), startDate }, now);
+  const shownStart = startDate ?? defaultStart;
+  const current = windowContaining({ period, days: Math.max(1, n), startDate: shownStart }, shownStart > now ? shownStart : now);
   const hint = repeat
     ? `Vuelve a empezar el ${dayLabel(current.end)}`
     : `Termina el ${dayLabel(addDays(current.end, -1))} y no vuelve`;
@@ -95,22 +107,23 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({ budget, pillar: initialP
     if (!name.trim()) return setError("Ponle un nombre");
     if (value <= 0) return setError("Pon un límite mayor a 0");
     if (period === "CUSTOM" && n < 2) return setError("Mínimo 2 días");
+    if (!startDate) return setError("Elige cuándo empieza");
 
     const base = { name: name.trim(), pillar, amount: value, period, repeat, categoryIds, alerts };
     const custom = period === "CUSTOM" ? { days: n } : {};
     setSaving(true);
     try {
       if (budget) {
-        // A one-time budget runs for the period it is in now
-        const start = repeat ? budget.startDate : windowContaining({ period, days: n, startDate: budget.startDate }, now).start;
-        const patch = { ...base, ...custom, startDate: start };
+        // Turning off "Repetir" on a budget that already started: it runs for the period it is in now
+        const restart = !repeat && startDate.getTime() === startOfDay(budget.startDate).getTime() && startDate < startOfDay(now);
+        const patch = { ...base, ...custom, startDate: restart ? windowContaining({ period, days: n, startDate }, now).start : startDate };
         await updateBudgetInDB(budget.id, {
           ...patch,
           ...(period === "CUSTOM" ? {} : { days: deleteField() }),
         } as unknown as Partial<Budget>);
         updateBudget(budget.id, { ...patch, days: period === "CUSTOM" ? n : undefined });
       } else {
-        const data: Omit<Budget, "id"> = { ...base, ...custom, startDate: startOfDay(now) };
+        const data: Omit<Budget, "id"> = { ...base, ...custom, startDate };
         const ref = await addBudgetInDB(user.uid, data);
         addBudget({ id: ref.id, ...data });
       }
@@ -207,6 +220,19 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({ budget, pillar: initialP
             días
           </label>
         )}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <CalendarDays className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+        <label htmlFor="budget-start" className="flex-1 text-sm font-semibold">Empieza</label>
+        <input
+          id="budget-start"
+          type="date"
+          value={start ?? toInputDate(defaultStart)}
+          onChange={(e) => { setStart(e.target.value); setError(null); }}
+          className="h-9 rounded-lg border border-input bg-background px-2 text-sm font-semibold tabular-nums"
+          data-testid="budget-start"
+        />
       </div>
 
       <div className="flex items-center gap-3">

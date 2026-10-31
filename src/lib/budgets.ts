@@ -72,16 +72,19 @@ export const monthlyEquivalent = (amount: number, period: BudgetPeriod, days?: n
   return period === 'MONTHLY' ? amount : (amount * 30) / length;
 };
 
-const spentIn = (b: Budget, txs: Transaction[], w: BudgetWindow, toPen: ToPen) =>
-  txs
+// Counts from the start date on, even when its first period began earlier
+const spentIn = (b: Budget, txs: Transaction[], w: BudgetWindow, toPen: ToPen) => {
+  const from = Math.max(w.start.getTime(), startOfDay(b.startDate).getTime());
+  return txs
     .filter((t) =>
       !t.isAdjustment &&
       t.pillar === b.pillar &&
       PILLAR_PICK_TYPES.includes(t.type) &&
       (b.categoryIds.length === 0 || (!!t.categoryId && b.categoryIds.includes(t.categoryId))) &&
-      t.date >= w.start && t.date < w.end
+      t.date.getTime() >= from && t.date < w.end
     )
     .reduce((sum, t) => addMoney(sum, toPen(t, t.amount)), 0);
+};
 
 export type BudgetState = 'ok' | 'near' | 'limit' | 'over';
 
@@ -92,7 +95,7 @@ export interface BudgetStatus {
   percent: number;
   state: BudgetState;
   ended: boolean; // one-time budget whose period is over
-  when: string; // "hoy" / "quedan 3 días" / "terminó"
+  upcoming: boolean; // starts after today
 }
 
 const stateOf = (percent: number): BudgetState =>
@@ -103,12 +106,27 @@ const whenText = (w: BudgetWindow, now: Date) => {
   return left <= 1 ? 'hoy' : `quedan ${left} días`;
 };
 
-export const computeBudgetStatus = (b: Budget, txs: Transaction[], toPen: ToPen, now = new Date()): BudgetStatus => {
-  const current = budgetWindowAt(b, now);
+// Status of the period running on `at` (today unless looking at another month)
+export const computeBudgetStatus = (b: Budget, txs: Transaction[], toPen: ToPen, now = new Date(), at = now): BudgetStatus => {
+  const current = budgetWindowAt(b, at);
+  const upcoming = startOfDay(b.startDate) > startOfDay(now);
   const window = current ?? windowContaining(b, b.startDate);
   const spent = spentIn(b, txs, window, toPen);
   const percent = b.amount > 0 ? calcPercent(spent, b.amount) : 0;
-  return { budget: b, window, spent, percent, state: stateOf(percent), ended: !current, when: current ? whenText(window, now) : 'terminó' };
+  return { budget: b, window, spent, percent, state: stateOf(percent), ended: !current && !upcoming, upcoming };
+};
+
+// Date whose period a budget shows when looking at a month: today in the current month, the last day
+// of past months, and in future months the first period that starts there. null: not running that month.
+export const monthViewDate = (b: Budget, year: number, month: number, now = new Date()): Date | null => {
+  const first = new Date(year, month, 1);
+  const next = new Date(year, month + 1, 1);
+  if (now >= first && now < next) return now;
+  if (next <= now) return addDays(next, -1);
+  const date = startOfDay(b.startDate) > first ? startOfDay(b.startDate) : first;
+  if (date >= next) return null;
+  const w = windowContaining(b, date);
+  return w.start < first && w.end < next ? w.end : date;
 };
 
 // ---- Alerts when a movement crosses 50 / 80 / 100% or goes over ----
