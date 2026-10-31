@@ -51,11 +51,11 @@ Objetivo financiero con monto objetivo, monto actual y fecha límite opcional. E
 ---
 
 ### Presupuesto
-Configuración mensual de límites de gasto por categoría. El sistema calcula el porcentaje de presupuesto consumido y lo muestra en el dashboard.
+Tope de gasto dentro de un pilar (por ejemplo "Salidas" en Recompensas). Cada presupuesto tiene un monto en soles, un plazo para gastarlo (día, semana lun–dom, quincena 1–15/16–fin, mes o cada N días), si se repite o termina al acabar el plazo, categorías opcionales (vacío = todo el pilar) y avisos al 50/80/100%. Cuenta los movimientos con ese pilar dentro del plazo, convertidos a soles como en Pilares.
 
-- **Sano:** 0–80% del presupuesto usado
-- **En alerta:** 80–100%
-- **Excedido:** más del 100%
+- **Al día:** menos del 80%
+- **Cerca:** 80–99%
+- **Límite / excedido:** 100% o más (pasarse siempre avisa)
 
 ---
 
@@ -110,10 +110,10 @@ Categorías de ingreso del sistema: Sueldo, otros.
 
 ---
 
-### Flujo de presupuesto mensual
-1. El usuario configura límites por categoría en **Presupuestos**.
-2. Al registrar gastos en esas categorías, el sistema calcula cuánto del límite se ha consumido.
-3. El dashboard muestra el estado general de salud del presupuesto del mes.
+### Flujo de presupuestos
+1. El usuario crea un presupuesto desde **Presupuestos** o con "+ Presupuesto" en la tarjeta de un pilar.
+2. Al registrar un movimiento con ese pilar, si cruza un aviso activo se muestra un toast (si a la vez hay un aviso más grave del pilar, se muestra ese).
+3. Pilares y el dashboard muestran cuántos presupuestos están al día, cerca o excedidos.
 
 ---
 

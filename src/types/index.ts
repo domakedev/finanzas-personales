@@ -84,13 +84,20 @@ export interface Goal {
   deadline?: Date;
 }
 
+export type BudgetPeriod = 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM';
+
+// Spending cap inside a pillar, counted in soles like Pilares
 export interface Budget {
-  id?: string;
-  userId: string;
-  month: number; // 0-11
-  year: number;
-  totalIncome: number;
-  categoryLimits: Record<string, number>; // categoryId -> limit amount
+  id: string;
+  name: string;
+  pillar: Pillar;
+  amount: number;
+  period: BudgetPeriod; // time to spend it: calendar day / week (Mon-Sun) / half-month / month, or CUSTOM days
+  days?: number; // CUSTOM: length of each period, counted from startDate
+  repeat: boolean; // false: it ends with its first period
+  startDate: Date; // first period is the one containing this date
+  categoryIds: string[]; // only these categories; empty = everything in the pillar
+  alerts: number[]; // 50 / 80 / 100: toast when spending crosses them (going over always warns)
 }
 
 export interface Category {

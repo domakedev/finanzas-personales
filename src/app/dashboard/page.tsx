@@ -8,6 +8,7 @@ import { RecentTransactionsList } from '@/components/dashboard/RecentTransaction
 import { CategorySpendingBar } from '@/components/dashboard/CategorySpendingBar';
 import { SavingsTree } from '@/components/SavingsTree';
 import { PillarsSummary } from '@/components/dashboard/PillarsSummary';
+import { useBudgetStatuses } from '@/components/budgets/BudgetBits';
 import {
   Wallet, CreditCard, TrendingUp, TrendingDown, DollarSign,
   PiggyBank, AlertCircle, Target, Calendar, RefreshCw
@@ -30,9 +31,9 @@ export default function Dashboard() {
     transactions,
     debts,
     goals,
-    currentBudget,
     categories
   } = useStore();
+  const budgetStatuses = useBudgetStatuses().filter((s) => !s.ended);
 
   // Calculate total balances
   const totalBalancePEN = accounts.filter(a => a.currency === 'PEN').reduce((sum, acc) => addMoney(sum, acc.balance), 0);
@@ -72,19 +73,10 @@ export default function Dashboard() {
   const cashFlow = subtractMoney(incomeMonth, expenseMonth);
   const savingsRate = incomeMonth > 0 ? calcPercent(subtractMoney(incomeMonth, expenseMonth), incomeMonth) : 0;
 
-  // Budget health
-  const budgetHealth = (() => {
-    if (!currentBudget || Object.keys(currentBudget.categoryLimits).length === 0) return null;
-
-    const budgetedCategories = Object.keys(currentBudget.categoryLimits);
-    const budgetedExpenses = transactions
-      .filter(t => t.type === 'EXPENSE' && t.categoryId && budgetedCategories.includes(t.categoryId) && t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear)
-      .reduce((sum, t) => addMoney(sum, t.amount), 0);
-
-    const totalBudgeted = Object.values(currentBudget.categoryLimits).reduce((sum, limit) => addMoney(sum, limit), 0);
-
-    return totalBudgeted > 0 ? calcPercent(budgetedExpenses, totalBudgeted) : null;
-  })();
+  // Budget health: running budgets on track vs near or over their limit
+  const budgetsOk = budgetStatuses.filter((s) => s.state === 'ok').length;
+  const budgetsNear = budgetStatuses.filter((s) => s.state === 'near').length;
+  const budgetsOver = budgetStatuses.length - budgetsOk - budgetsNear;
 
   // Credit card payment proximity
   const creditCards = debts.filter(d => d.isCreditCard && d.paymentDate);
@@ -205,17 +197,17 @@ export default function Dashboard() {
             colorScheme={cashFlow >= 0 ? 'success' : 'danger'}
           />
 
-          {budgetHealth !== null ? (
+          {budgetStatuses.length > 0 ? (
             <QuickStatsCard
-              title="Salud de Presupuesto"
-              amount={`${budgetHealth.toFixed(0)}%`}
+              title="Presupuestos"
+              amount={`${budgetsOk}/${budgetStatuses.length}`}
               icon={PiggyBank}
-              subtitle={budgetHealth > 100 ? 'Excedido' : 'del presupuesto usado'}
-              colorScheme={budgetHealth > 100 ? 'danger' : budgetHealth > 80 ? 'warning' : 'success'}
+              subtitle={`al día · ${budgetsNear} cerca · ${budgetsOver} excedidos`}
+              colorScheme={budgetsOver > 0 ? 'danger' : budgetsNear > 0 ? 'warning' : 'success'}
             />
           ) : (
             <QuickStatsCard
-              title="Salud de Presupuesto"
+              title="Presupuestos"
               amount="N/A"
               icon={PiggyBank}
               subtitle="Sin presupuesto activo"

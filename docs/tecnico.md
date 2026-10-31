@@ -41,7 +41,7 @@ src/
 │   ├── accounts/         # Gestión de cuentas
 │   ├── debts/            # Deudas y tarjetas
 │   ├── goals/            # Metas de ahorro
-│   ├── budgets/          # Presupuesto mensual
+│   ├── budgets/          # Presupuestos por pilar
 │   ├── categories/       # Categorías
 │   └── layout.tsx        # Layout raíz con providers
 │
@@ -162,13 +162,19 @@ interface Goal {
 ### `budgets`
 ```typescript
 interface Budget {
-  id?: string;
-  userId: string;
-  month: number;    // 0-11
-  year: number;
-  totalIncome: number;
-  categoryLimits: Record<string, number>;  // categoryId -> monto límite
+  id: string;
+  name: string;
+  pillar: Pillar;
+  amount: number;          // soles
+  period: 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM';
+  days?: number;           // CUSTOM: largo de cada período desde startDate
+  repeat: boolean;         // false: termina con su primer período
+  startDate: Date;         // Timestamp en Firestore
+  categoryIds: string[];   // vacío = todo el pilar
+  alerts: number[];        // 50 / 80 / 100
 }
+// Los documentos antiguos (presupuesto mensual por categoría, sin `pillar`) se ignoran.
+// Cálculo de períodos y avisos: lib/budgets.ts
 ```
 
 ### `categories`
@@ -203,8 +209,8 @@ Todas las operaciones a Firestore pasan por este archivo. No hay llamadas direct
 | `addDebt / updateDebt / deleteDebt` | CRUD de deudas |
 | `getGoals(userId)` | Lee todas las metas |
 | `addGoal / updateGoal / deleteGoal` | CRUD de metas |
-| `getBudget(userId, month, year)` | Lee el presupuesto del mes |
-| `saveBudget(userId, budget)` | Crea o actualiza el presupuesto (upsert) |
+| `getBudgets(userId)` | Lee los presupuestos por pilar |
+| `addBudget / updateBudget / deleteBudget` | CRUD de presupuestos |
 | `getCategories(userId)` | Lee categorías del sistema + personalizadas |
 | `addCategory / updateCategory / deleteCategory` | CRUD de categorías |
 
@@ -221,7 +227,7 @@ interface AppState {
   transactions: Transaction[];
   debts: Debt[];
   goals: Goal[];
-  budget: Budget | null;
+  budgets: Budget[];
   categories: Category[];
   // Setters y acciones...
 }

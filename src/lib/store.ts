@@ -29,8 +29,11 @@ interface AppState {
   addGoal: (goal: Goal) => void;
   updateGoal: (id: string, goal: Partial<Goal>) => void;
 
-  currentBudget: Budget | null;
-  setCurrentBudget: (budget: Budget | null) => void;
+  budgets: Budget[];
+  setBudgets: (budgets: Budget[]) => void;
+  addBudget: (budget: Budget) => void;
+  updateBudget: (id: string, budget: Partial<Budget>) => void;
+  removeBudget: (id: string) => void;
 
   categories: Category[];
   setCategories: (categories: Category[]) => void;
@@ -95,8 +98,15 @@ export const useStore = create<AppState>((set) => ({
     goals: state.goals.map((g) => g.id === id ? { ...g, ...updated } : g)
   })),
 
-  currentBudget: null,
-  setCurrentBudget: (budget) => set({ currentBudget: budget }),
+  budgets: [],
+  setBudgets: (budgets) => set({ budgets }),
+  addBudget: (budget) => set((state) => ({ budgets: [...state.budgets, budget] })),
+  updateBudget: (id, updated) => set((state) => ({
+    budgets: state.budgets.map((b) => b.id === id ? { ...b, ...updated } : b)
+  })),
+  removeBudget: (id) => set((state) => ({
+    budgets: state.budgets.filter((b) => b.id !== id)
+  })),
 
   categories: [],
   setCategories: (categories) => set({ categories }),

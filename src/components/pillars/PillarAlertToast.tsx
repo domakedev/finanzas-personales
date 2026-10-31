@@ -13,6 +13,14 @@ const TONE_BORDER = {
   danger: "border-red-500",
 };
 
+// Budget alerts show their percentage; going over gets the solid red box
+const TONE_BADGE = {
+  info: "bg-muted text-muted-foreground",
+  success: "bg-green-100 text-green-800",
+  warning: "bg-amber-100 text-amber-800",
+  danger: "bg-red-100 text-red-800",
+};
+
 export const PillarAlertToast: React.FC = () => {
   const alert = useStore((s) => s.pillarAlert);
   const setPillarAlert = useStore((s) => s.setPillarAlert);
@@ -37,7 +45,16 @@ export const PillarAlertToast: React.FC = () => {
       )}
       data-testid="pillar-alert"
     >
-      {meta && Icon && (
+      {alert.badge ? (
+        <span
+          className={cn(
+            "flex h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-lg px-1.5 text-sm font-bold tabular-nums",
+            alert.badge.startsWith("+") ? "bg-red-700 text-white" : TONE_BADGE[alert.tone]
+          )}
+        >
+          {alert.badge}
+        </span>
+      ) : meta && Icon && (
         <span
           className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
           style={{ backgroundColor: `${meta.color}26`, color: meta.color }}

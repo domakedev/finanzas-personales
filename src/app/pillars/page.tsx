@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
-import { ChevronLeft, ChevronRight, Check, AlertCircle, CalendarClock, Info, Undo2, X, EyeOff, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, AlertCircle, CalendarClock, Info, Undo2, X, EyeOff, Eye, Plus } from 'lucide-react';
 import { deleteField } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { IncomeSplitEditor } from '@/components/pillars/IncomeSplitEditor';
+import { BudgetForm } from '@/components/budgets/BudgetForm';
+import { BudgetBar, BudgetPercent, budgetAmounts, BudgetStatusLink, PeriodBadge, useBudgetStatuses } from '@/components/budgets/BudgetBits';
 import { useStore } from '@/lib/store';
 import { updateTransaction as updateTransactionInDB } from '@/lib/db';
 import {
@@ -15,7 +17,7 @@ import {
   PillarStatus, PillarSplit, splitTotal,
 } from '@/lib/pillars';
 import { subtractMoney } from '@/lib/utils';
-import { Pillar, Transaction } from '@/types';
+import { Budget, Pillar, Transaction } from '@/types';
 
 const money = (v: number, currency: Currency = 'PEN') =>
   `${currencySymbol(currency)} ${v.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -54,6 +56,8 @@ export default function PillarsPage() {
   const [lastAssigned, setLastAssigned] = useState<{ txId: string; description: string; pillar: Pillar } | null>(null);
   const [showHidden, setShowHidden] = useState(false);
   const [showHiddenExpenses, setShowHiddenExpenses] = useState(false);
+  const [budgetForm, setBudgetForm] = useState<{ budget?: Budget; pillar?: Pillar } | null>(null);
+  const budgetStatuses = useBudgetStatuses();
 
   // Pilares count in soles; dollar movements are converted with the rate frozen on them
   const currencyOf = makeCurrencyOf(accounts, debts);
@@ -75,6 +79,9 @@ export default function PillarsPage() {
   const monthName = new Date(cursor.year, cursor.month, 1).toLocaleDateString('es-PE', { month: 'long' });
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name;
   const toSplit = Math.max(0, subtractMoney(income, assigned));
+  // Budgets show their current period, so only next to the current month
+  const today = new Date();
+  const isCurrentMonth = cursor.month === today.getMonth() && cursor.year === today.getFullYear();
 
   const shiftMonth = (delta: number) => {
     const d = new Date(cursor.year, cursor.month + delta, 1);
@@ -190,6 +197,12 @@ export default function PillarsPage() {
             <button onClick={() => shiftMonth(1)} className="rounded-full p-2 hover:bg-muted" aria-label="Mes siguiente">
               <ChevronRight className="h-5 w-5" />
             </button>
+            <span className="ml-2 hidden sm:inline-flex">
+              <BudgetStatusLink statuses={budgetStatuses} />
+            </span>
+          </div>
+          <div className="flex justify-center sm:hidden">
+            <BudgetStatusLink statuses={budgetStatuses} />
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <label className="rounded-lg border border-border bg-card px-4 py-2" title="Se guarda en cada movimiento en dólares al registrarlo; cambiarlo no altera los anteriores">
@@ -289,6 +302,37 @@ export default function PillarsPage() {
                         {line.text}
                       </p>
                     </div>
+
+                    {isCurrentMonth && (
+                      <div className="space-y-1.5" data-testid={`pillar-budgets-${meta.id}`}>
+                        {budgetStatuses
+                          .filter((s) => s.budget.pillar === meta.id && !s.ended)
+                          .map((s) => (
+                            <button
+                              key={s.budget.id}
+                              onClick={() => setBudgetForm({ budget: s.budget })}
+                              className="block w-full space-y-1.5 rounded-lg bg-muted/60 px-3 py-2.5 text-left hover:bg-muted"
+                              aria-label={`Editar presupuesto ${s.budget.name}`}
+                            >
+                              <span className="flex items-center gap-2 text-sm">
+                                <span className="min-w-0 truncate font-semibold">{s.budget.name}</span>
+                                <PeriodBadge budget={s.budget} />
+                                <span className="flex-1" />
+                                <span className="tabular-nums text-muted-foreground">{budgetAmounts(s)}</span>
+                                <BudgetPercent status={s} className="min-w-12" />
+                              </span>
+                              <BudgetBar status={s} />
+                            </button>
+                          ))}
+                        <button
+                          onClick={() => setBudgetForm({ pillar: meta.id })}
+                          className="flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+                          aria-label={`Nuevo presupuesto en ${meta.name}`}
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Presupuesto
+                        </button>
+                      </div>
+                    )}
 
                     <div className="mt-auto border-t border-border pt-2">
                       {sorted.length === 0 ? (
@@ -533,6 +577,14 @@ export default function PillarsPage() {
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={budgetForm !== null}
+        onClose={() => setBudgetForm(null)}
+        title={budgetForm?.budget ? 'Editar presupuesto' : 'Nuevo presupuesto'}
+      >
+        {budgetForm && <BudgetForm budget={budgetForm.budget} pillar={budgetForm.pillar} onDone={() => setBudgetForm(null)} />}
+      </Modal>
 
       <Modal isOpen={splitTx !== null} onClose={() => setSplitTx(null)} title={splitTx ? `${splitTx.description} · ${money(splitTx.amount, currencyOf(splitTx))}` : ''}>
         {splitTx && (

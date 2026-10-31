@@ -337,28 +337,26 @@ export const deleteGoal = async (goalId: string) => {
   return deleteDoc(doc(db, 'goals', goalId));
 };
 
-// Budgets
-export const getBudget = async (userId: string, month: number, year: number): Promise<Budget | null> => {
-  const q = query(
-    collection(db, 'budgets'),
-    where('userId', '==', userId),
-    where('month', '==', month),
-    where('year', '==', year)
-  );
+// Budgets (per pillar). Old monthly budgets in the same collection have no pillar and are ignored.
+export const getBudgets = async (userId: string): Promise<Budget[]> => {
+  const q = query(collection(db, 'budgets'), where('userId', '==', userId));
   const snapshot = await getDocs(q);
-  if (snapshot.empty) return null;
-  return convertDoc<Budget>(snapshot.docs[0]);
+  return snapshot.docs
+    .filter((d) => d.data().pillar)
+    .map((d) => ({ ...convertDoc<Budget>(d), startDate: (d.data().startDate as Timestamp).toDate() }));
 };
 
-export const saveBudget = async (userId: string, budget: Omit<Budget, 'id' | 'userId'>) => {
-  // Check if budget exists for this month/year
-  const existingBudget = await getBudget(userId, budget.month, budget.year);
+export const addBudget = async (userId: string, budget: Omit<Budget, 'id'>) => {
+  return addDoc(collection(db, 'budgets'), { ...budget, userId, startDate: Timestamp.fromDate(budget.startDate) });
+};
 
-  if (existingBudget && existingBudget.id) {
-    return updateDoc(doc(db, 'budgets', existingBudget.id), budget);
-  } else {
-    return addDoc(collection(db, 'budgets'), { ...budget, userId });
-  }
+export const updateBudget = async (budgetId: string, budget: Partial<Omit<Budget, 'id'>>) => {
+  const data = budget.startDate ? { ...budget, startDate: Timestamp.fromDate(budget.startDate) } : budget;
+  return updateDoc(doc(db, 'budgets', budgetId), data);
+};
+
+export const deleteBudget = async (budgetId: string) => {
+  return deleteDoc(doc(db, 'budgets', budgetId));
 };
 
 // Categories

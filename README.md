@@ -1,6 +1,6 @@
 # Finanzas Personales
 
-Aplicación web para la gestión de finanzas personales, orientada al mercado peruano. Permite administrar cuentas, ingresos, gastos, deudas, metas de ahorro y presupuestos mensuales en soles (PEN) y dólares (USD).
+Aplicación web para la gestión de finanzas personales, orientada al mercado peruano. Permite administrar cuentas, ingresos, gastos, deudas, metas de ahorro y presupuestos por pilar en soles (PEN) y dólares (USD).
 
 ## Stack
 
@@ -19,7 +19,7 @@ Aplicación web para la gestión de finanzas personales, orientada al mercado pe
 | Transacciones | Ingresos, gastos, transferencias, pagos y cobros |
 | Deudas | Deudas comunes, tarjetas de crédito y préstamos realizados |
 | Metas | Metas de ahorro con seguimiento de progreso |
-| Presupuestos | Límites por categoría de gasto |
+| Presupuestos | Topes de gasto por pilar (día, semana, quincena, mes o N días) con avisos |
 | Categorías | Categorías predefinidas y personalizadas |
 | Ponerme al día | Reconciliación rápida: escribe el saldo real de cuentas, tarjetas y deudas y la app crea los ajustes |
 

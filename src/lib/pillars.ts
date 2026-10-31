@@ -38,7 +38,7 @@ export const PILLAR_IDS = PILLARS.map((p) => p.id) as [Pillar, ...Pillar[]];
 export const getPillar = (id?: Pillar) => PILLARS.find((p) => p.id === id);
 
 // Hint shown in the picker (never preselected): the user always chooses the pillar
-const CATEGORY_PILLAR: Record<string, Pillar> = {
+export const CATEGORY_PILLAR: Record<string, Pillar> = {
   food: 'ESSENTIAL',
   transport: 'ESSENTIAL',
   health: 'ESSENTIAL',
@@ -186,6 +186,7 @@ export interface PillarAlert {
   title: string;
   detail: string;
   tone: 'info' | 'warning' | 'danger' | 'success';
+  badge?: string; // budget alerts: "80%" / "+20" shown instead of the pillar icon
 }
 
 const THRESHOLDS = [100, 90, 75, 50];

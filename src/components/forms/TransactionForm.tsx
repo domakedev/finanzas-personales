@@ -22,7 +22,8 @@ import { deleteField } from "firebase/firestore";
 import { PillarPicker } from "@/components/pillars/PillarPicker";
 import { IncomeSplitEditor } from "@/components/pillars/IncomeSplitEditor";
 import { PillarMonthInput } from "@/components/pillars/PillarMonthInput";
-import { cleanSplit, currencySymbol, findPillarAlert, makeCurrencyOf, makeToPen, PILLAR_PICK_TYPES, pillarMonthDate, splitTotal, suggestPillar } from "@/lib/pillars";
+import { cleanSplit, currencySymbol, makeCurrencyOf, makeToPen, PILLAR_PICK_TYPES, pillarMonthDate, splitTotal, suggestPillar } from "@/lib/pillars";
+import { findMovementAlert } from "@/lib/budgets";
 
 interface TransactionFormProps {
   onSuccess: () => void;
@@ -51,6 +52,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const transactions = useStore((state) => state.transactions);
   const setPillarAlert = useStore((state) => state.setPillarAlert);
   const usdRate = useStore((state) => state.usdRate);
+  const budgets = useStore((state) => state.budgets);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // "Ponerme al día" adjustments only count in Pilares once the user explicitly confirms them as real
   const [confirmReal, setConfirmReal] = useState(false);
@@ -773,10 +775,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         addTransactionToStore(transactionWithRealId);
       }
 
-      // Milestone alert (50/75/90/100%/over) for the pillar this movement touched
+      // Milestone alert for the pillar or budget this movement touched
       const savedTx = { ...newTransaction, id: transaction?.id ?? "new", createdAt: new Date() } as Transaction;
       const after = [...transactions.filter((t) => t.id !== transaction?.id), savedTx];
-      const alert = findPillarAlert(transactions, after, [pillarMonthDate(savedTx)], makeToPen(makeCurrencyOf(accounts, debts), usdRate));
+      const alert = findMovementAlert(budgets, transactions, after, [savedTx], [pillarMonthDate(savedTx)], makeToPen(makeCurrencyOf(accounts, debts), usdRate));
       if (alert) setPillarAlert(alert);
 
       reset();

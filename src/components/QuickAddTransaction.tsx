@@ -19,7 +19,8 @@ import {
 } from "@/lib/db";
 import { addMoney, subtractMoney } from "@/lib/utils";
 import { PillarPicker } from "@/components/pillars/PillarPicker";
-import { findPillarAlert, getPillar, makeCurrencyOf, makeToPen, PILLAR_PICK_TYPES, pillarMonthDate, suggestPillar } from "@/lib/pillars";
+import { getPillar, makeCurrencyOf, makeToPen, PILLAR_PICK_TYPES, pillarMonthDate, suggestPillar } from "@/lib/pillars";
+import { findMovementAlert } from "@/lib/budgets";
 
 export const QuickAddTransaction: React.FC = () => {
   const { user: authUser } = useAuth();
@@ -35,6 +36,7 @@ export const QuickAddTransaction: React.FC = () => {
   const transactions = useStore((s) => s.transactions);
   const setPillarAlert = useStore((s) => s.setPillarAlert);
   const usdRate = useStore((s) => s.usdRate);
+  const budgets = useStore((s) => s.budgets);
 
   const [isOpen, setIsOpen] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -244,7 +246,7 @@ export const QuickAddTransaction: React.FC = () => {
         }
       }
 
-      const alert = findPillarAlert(before, [...before, ...saved], saved.map(pillarMonthDate), makeToPen(makeCurrencyOf(accounts, debts), usdRate));
+      const alert = findMovementAlert(budgets, before, [...before, ...saved], saved, saved.map(pillarMonthDate), makeToPen(makeCurrencyOf(accounts, debts), usdRate));
       if (alert) setPillarAlert(alert);
 
       setShowSuccess(true);
